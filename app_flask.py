@@ -1,4 +1,56 @@
-@app.route('/debug', methods=['GET'])
+def formater_reponse_pour_html(texte):
+    """Convertir la réponse de l'API en HTML formaté pour l'affichage"""
+    app.logger.info("Formatage de la réponse pour HTML")
+    
+    # Fonction pour remplacer les caractères spéciaux HTML
+    def escape_html(text):
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    
+    if not texte:
+        return ""
+    
+    # Formater les titres
+    # 1. Remplacer les titres markdown par des balises HTML
+    for i in range(3, 0, -1):  # Commencer par h3, puis h2, puis h1
+        pattern = '#' * i + ' (.+?)($|\n)'
+        texte = re.sub(pattern, f'<h{i}>\\1</h{i}>\n', texte)
+    
+    # 2. Traiter le texte en gras
+    texte = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', texte)
+    
+    # 3. Traiter les listes à puces
+    lines = texte.split('\n')
+    in_list = False
+    formatted_lines = []
+    
+    for line in lines:
+        # Si c'est une ligne de liste
+        if line.strip().startswith('* ') or line.strip().startswith('- '):
+            if not in_list:
+                formatted_lines.append('<ul>')
+                in_list = True
+            # Récupérer le texte après le marqueur de liste
+            list_item = line.strip()[2:].strip()
+            formatted_lines.append(f'<li>{escape_html(list_item)}</li>')
+        else:
+            if in_list:
+                formatted_lines.append('</ul>')
+                in_list = False
+            # Sauts de ligne avec paragraphes
+            if line.strip() == '':
+                formatted_lines.append('<br>')
+            else:
+                # Si c'est déjà une balise HTML, la laisser telle quelle
+                if line.strip().startswith('<'):
+                    formatted_lines.append(line)
+                else:
+                    formatted_lines.append(f'<p>{escape_html(line)}</p>')
+    
+    # Fermer la liste si besoin
+    if in_list:
+        formatted_lines.append('</ul>')
+    
+    return '\n'.join(formatted_lines)@app.route('/debug', methods=['GET'])
 def debug_info():
     """Endpoint de débogage pour vérifier l'état de l'application"""
     debug_data = {
@@ -13,6 +65,7 @@ def debug_info():
     return jsonify(debug_data)import os
 import requests
 import logging
+import re
 from flask import Flask, render_template, request, jsonify, session
 from werkzeug.utils import secure_filename
 import PyPDF2
@@ -220,38 +273,46 @@ def analyser_document_avec_ia(texte, document_type):
     if document_type == "dossier_initial":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser ce dossier initial qui contient l'analyse du CV et des recommandations.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+
+FORMAT: Ta réponse doit être bien structurée et lisible.
+- Utilise des titres avec des # (ex: # Titre principal)
+- Utilise des sous-titres avec ## et ### (ex: ## Section importante)
+- Utilise des listes à puces avec * ou - (ex: * Point important)
+- Mets en gras les éléments importants avec ** (ex: **point clé**)
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     elif document_type == "cv":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser ce CV et fournir des conseils d'amélioration.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+
+FORMAT: Ta réponse doit être bien structurée et lisible.
+- Utilise des titres avec des # (ex: # Analyse du CV)
+- Utilise des sous-titres avec ## et ### (ex: ## Forces identifiées)
+- Utilise des listes à puces avec * ou - (ex: * Expérience pertinente)
+- Mets en gras les éléments importants avec ** (ex: **point d'amélioration**)
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     elif document_type == "offre_emploi":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser cette offre d'emploi et fournir des conseils pour y postuler.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+
+FORMAT: Ta réponse doit être bien structurée et lisible.
+- Utilise des titres avec des # (ex: # Analyse de l'offre)
+- Utilise des sous-titres avec ## et ### (ex: ## Compétences requises)
+- Utilise des listes à puces avec * ou - (ex: * Expérience pertinente)
+- Mets en gras les éléments importants avec ** (ex: **exigence clé**)
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     else:
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser ce document et fournir des conseils utiles.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+
+FORMAT: Ta réponse doit être bien structurée et lisible.
+- Utilise des titres avec des # (ex: # Analyse du document)
+- Utilise des sous-titres avec ## et ### (ex: ## Points importants)
+- Utilise des listes à puces avec * ou - (ex: * Point clé)
+- Mets en gras les éléments importants avec ** (ex: **à retenir**)
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     
     # Limiter le texte à 4000 caractères
@@ -298,12 +359,14 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
                 analyse = response.json()["choices"][0]["message"]["content"]
                 app.logger.info(f"Analyse reçue, longueur: {len(analyse)} caractères")
                 
-                # Nettoyer le formatage si nécessaire (enlever les caractères markdown)
-                analyse = analyse.replace('**', '').replace('##', '').replace('*', '• ')
+                # Formater la réponse en HTML
+                analyse_html = formater_reponse_pour_html(analyse)
                 
-                # Sauvegarder l'analyse dans la session
+                # Sauvegarder l'analyse brute dans la session pour référence
                 sauvegarder_analyse_dans_session(analyse, document_type)
-                return analyse
+                
+                # Retourner la version HTML formatée
+                return analyse_html
             except Exception as parse_error:
                 app.logger.error(f"Erreur lors du parsing de la réponse: {str(parse_error)}")
                 return f"Erreur lors du traitement de la réponse API: {str(parse_error)}"
@@ -338,11 +401,13 @@ def chat_avec_ia(message):
     }
     
     system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+
+FORMAT: Ta réponse doit être bien structurée et lisible.
+- Utilise des titres avec des # (ex: # Réponse)
+- Utilise des sous-titres avec ## et ### si nécessaire
+- Utilise des listes à puces avec * ou - pour les points importants
+- Mets en gras les éléments importants avec ** (ex: **point clé**)
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     
     messages = [{"role": "system", "content": system_prompt},
@@ -353,7 +418,7 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
         context = "Contexte des analyses précédentes:\n"
         for doc_type, analyse in session['analyses'].items():
             # Limiter la taille pour éviter de dépasser les tokens
-            resume = analyse[:500] + "..." if len(analyse) > 500 else analyse
+            resume = analyse[:300] + "..." if len(analyse) > 300 else analyse
             context += f"\n--- {doc_type} ---\n{resume}\n"
         
         messages.insert(1, {"role": "assistant", "content": context})
@@ -361,7 +426,7 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
     data = {
         "model": "gpt-4o",
         "messages": messages,
-        "max_tokens": 2000
+        "max_tokens": 1500
     }
     
     try:
@@ -374,9 +439,8 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
         
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
-            # Nettoyer le formatage markdown
-            content = content.replace('**', '').replace('##', '').replace('*', '• ')
-            return content
+            # Convertir en HTML formaté
+            return formater_reponse_pour_html(content)
         else:
             return f"Erreur API: {response.status_code} - {response.text}"
     except Exception as e:
