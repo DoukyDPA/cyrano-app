@@ -1,4 +1,16 @@
-import os
+@app.route('/debug', methods=['GET'])
+def debug_info():
+    """Endpoint de débogage pour vérifier l'état de l'application"""
+    debug_data = {
+        'session_active': bool(session),
+        'session_id': session.get('_id', 'non défini'),
+        'analyses_present': 'analyses' in session,
+        'api_key_configured': bool(API_KEY),
+        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
+        'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
+        'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
+    }
+    return jsonify(debug_data)import os
 import requests
 import logging
 from flask import Flask, render_template, request, jsonify, session
@@ -190,142 +202,80 @@ def analyser_document_avec_ia(texte, document_type):
     """Analyser un document avec l'API OpenAI"""
     app.logger.info(f"Début d'analyse de document type: {document_type}")
     
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
+    # Vérification des données d'entrée
+    if not texte or len(texte.strip()) < 5:
+        app.logger.error("Texte vide ou trop court")
+        return "Le texte extrait du document est vide ou trop court pour être analysé. Veuillez vérifier le fichier."
+    
+    # Log pour confirmer qu'on a bien un texte
+    app.logger.info(f"Longueur du texte à analyser: {len(texte)} caractères")
+    app.logger.info(f"Début du texte: {texte[:100]}...")
     
     # Vérification de la clé API
     if not API_KEY:
         app.logger.error("Clé API OpenAI non configurée")
         return "Erreur: La clé API OpenAI n'est pas configurée. Veuillez contacter l'administrateur."
+        
+    # Utiliser une approche simplifiée avec un système prompt minimal pour tester
+    system_prompt = "Tu es un coach en insertion professionnelle expérimenté. Analyse ce document et fournis des conseils utiles."
     
-    # Adapter le prompt système selon le type de document
-    if document_type == "dossier_initial":
-        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION
-Analyser ce dossier initial qui contient l'analyse du CV et des recommandations faites par le CBE Sud 94. 
-Extraire et mémoriser les informations clés sur le candidat, ses compétences, son parcours, et les recommandations déjà formulées.
-Ces informations serviront de base pour l'accompagnement futur du candidat.
-"""
-    elif document_type == "cv":
-        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION
-Analyser ce CV en te basant sur le dossier initial déjà fourni.
-Comparer avec les versions précédentes si disponibles.
-Évaluer les améliorations réalisées et celles restant à faire.
-Noter précisément le CV (/10) avec justification détaillée.
-"""
-    elif document_type == "offre_emploi":
-        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION
-Analyser cette offre d'emploi en relation avec le profil du candidat.
-Extraire les exigences-clés (compétences, qualifications, mots-clés).
-Évaluer la compatibilité avec le profil du candidat.
-Proposer des adaptations du CV pour cette offre spécifique.
-Ébaucher les points clés d'une lettre de motivation.
-Préparer aux questions probables en entretien.
-"""
-    else:  # document_general
-        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION
-Tu accompagnes les demandeurs d'emploi déjà suivis par le CBE Sud 94 vers l'autonomie dans l'optimisation de leur candidature (CV, LM, entretiens), en t'appuyant sur des analyses personnalisées et des échanges collaboratifs.
-
-MÉTHODOLOGIE D'ACCOMPAGNEMENT
-ÉTAPE PRÉLIMINAIRE - DOCUMENT FONDAMENTAL
-Tu travailles sur la base du dossier initial réalisé par le CBE Sud 94.
-Sans ce document, tu refuses poliment de poursuivre en expliquant son importance.
-
-ANALYSE PROGRESSIVE DU CV
-Compare systématiquement chaque nouvelle version avec:
-Le CV initial et ses lacunes identifiées
-Les améliorations réalisées/restantes
-Évalue précisément avec une note justifiée (/10)
-Formule des axes d'amélioration actionnables et concrets
-
-ADAPTATION AUX OFFRES D'EMPLOI
-Extrais les exigences-clés (compétences, qualifications, mots-clés)
-Propose une personnalisation ciblée du CV mettant en valeur les correspondances
-Ébauche une lettre de motivation stratégique spécifique à l'offre
-Prépare aux questions probables en entretien pour cette offre
-
-PRINCIPES DIRECTEURS
-Contextualisation: Adapter l'accompagnement au profil spécifique
-Autonomisation: Fournir méthodologies et outils réutilisables
-Progressivité: Guider par étapes vers l'amélioration
-"""
+    # Limiter à 2000 caractères pour commencer et garantir que l'API reçoit quelque chose
+    texte_limite = texte[:2000] + "..." if len(texte) > 2000 else texte
     
-    # Vérifier si le dossier initial est requis
-    if document_type != "dossier_initial" and not verifier_dossier_initial():
-        app.logger.warning("Tentative d'analyse sans dossier initial")
-        return "Veuillez d'abord télécharger le dossier initial d'analyse réalisé par le CBE Sud 94 avant de continuer. Ce document est essentiel pour vous accompagner efficacement."
+    message_utilisateur = f"Voici un document à analyser ({document_type}):\n\n{texte_limite}\n\nMerci de confirmer que tu peux lire ce document et d'en faire une analyse simple."
     
-    # Vérifier que le texte n'est pas vide
-    if not texte or len(texte.strip()) < 10:
-        app.logger.error(f"Texte trop court ou vide: '{texte}'")
-        return "Le document semble vide ou trop court pour être analysé. Veuillez vérifier le fichier téléchargé."
-    
-    # Log le texte pour débogage (limité pour ne pas surcharger les logs)
-    text_preview = texte[:200] + "..." if len(texte) > 200 else texte
-    app.logger.info(f"Aperçu du texte à analyser: {text_preview}")
-    
-    # Limiter la taille du texte pour éviter de dépasser les tokens
-    # Ajusté à 8000 caractères pour donner plus de contexte à l'IA
-    texte_limite = texte[:8000] + "..." if len(texte) > 8000 else texte
-    
-    message_utilisateur = f"Voici un document à analyser ({document_type}):\n\n{texte_limite}\n\nMerci de l'analyser selon les directives."
-    
-    # Ajouter les analyses précédentes au contexte si disponibles
-    messages = [{"role": "system", "content": system_prompt},
-                {"role": "user", "content": message_utilisateur}]
-    
-    # Ajouter le contexte du dossier initial si disponible et si ce n'est pas l'analyse du dossier initial
-    if document_type != "dossier_initial" and 'analyses' in session and 'dossier_initial' in session['analyses']:
-        # Limiter la taille du contexte
-        contexte_dossier = session['analyses']['dossier_initial'][:1500] + "..." if len(session['analyses']['dossier_initial']) > 1500 else session['analyses']['dossier_initial']
-        messages.insert(1, {"role": "assistant", "content": "Contexte du dossier initial: " + contexte_dossier})
-    
-    # Ajouter le CV si disponible et si on analyse une offre d'emploi
-    if document_type == "offre_emploi" and 'analyses' in session and 'cv' in session['analyses']:
-        # Limiter la taille du contexte
-        contexte_cv = session['analyses']['cv'][:1500] + "..." if len(session['analyses']['cv']) > 1500 else session['analyses']['cv']
-        messages.insert(1, {"role": "assistant", "content": "Contexte du CV du candidat: " + contexte_cv})
+    # Configuration de base pour l'appel API
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
     
     data = {
         "model": "gpt-4o",
-        "messages": messages,
-        "max_tokens": 2000
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": message_utilisateur}
+        ],
+        "max_tokens": 500  # Limiter la réponse pour ce test
     }
     
-    app.logger.info(f"Nombre de messages: {len(messages)}")
-    app.logger.info(f"Taille approximative du contenu envoyé à l'API: {sum(len(m['content']) for m in messages)} caractères")
+    app.logger.info("Envoi d'une requête test à l'API OpenAI")
     
     try:
-        app.logger.info("Envoi de la requête à l'API OpenAI")
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=60  # Augmenter le timeout à 60 secondes
+            timeout=30
         )
         
-        app.logger.info(f"Réponse reçue avec code HTTP: {response.status_code}")
+        app.logger.info(f"Réponse reçue, statut HTTP: {response.status_code}")
         
         if response.status_code == 200:
-            analyse = response.json()["choices"][0]["message"]["content"]
-            app.logger.info(f"Analyse réussie, taille de la réponse: {len(analyse)} caractères")
-            
-            # Sauvegarder l'analyse dans la session
-            sauvegarder_analyse_dans_session(analyse, document_type)
-            return analyse
+            try:
+                analyse = response.json()["choices"][0]["message"]["content"]
+                app.logger.info(f"Analyse reçue, longueur: {len(analyse)} caractères")
+                app.logger.info(f"Début de l'analyse: {analyse[:100]}...")
+                
+                # Si cette requête test a fonctionné, on ajoute le contenu à la session
+                sauvegarder_analyse_dans_session(analyse, document_type)
+                return analyse
+            except Exception as parse_error:
+                app.logger.error(f"Erreur lors du parsing de la réponse: {str(parse_error)}")
+                return f"Erreur lors du traitement de la réponse API: {str(parse_error)}"
         else:
-            error_msg = f"Erreur API: {response.status_code} - {response.text}"
-            app.logger.error(error_msg)
-            return error_msg
+            error_text = response.text[:500] if response.text else "Pas de détails disponibles"
+            app.logger.error(f"Erreur API: {response.status_code} - {error_text}")
+            return f"Erreur API ({response.status_code}): {error_text}"
+    except requests.exceptions.Timeout:
+        app.logger.error("Timeout lors de l'appel à l'API OpenAI")
+        return "L'API OpenAI n'a pas répondu dans le délai imparti. Veuillez réessayer."
+    except requests.exceptions.RequestException as req_error:
+        app.logger.error(f"Erreur de requête HTTP: {str(req_error)}")
+        return f"Erreur lors de la communication avec l'API: {str(req_error)}"
     except Exception as e:
-        error_msg = f"Exception lors de l'appel API: {str(e)}"
-        app.logger.error(error_msg)
-        return error_msg
+        app.logger.error(f"Exception non gérée: {str(e)}")
+        return f"Erreur inattendue: {str(e)}"
 
 @app.route('/')
 def index():
@@ -427,24 +377,41 @@ def upload_file():
             app.logger.info(f"Sauvegarde du fichier: {file_path}")
             
             try:
-                file.save(file_path)
-                app.logger.info("Fichier sauvegardé avec succès")
+                # Sauvegarder directement le contenu sans utiliser save()
+                file_content = file.read()
+                with open(file_path, 'wb') as f:
+                    f.write(file_content)
+                
+                app.logger.info(f"Fichier sauvegardé avec succès, taille: {len(file_content)} octets")
                 
                 # Vérifier que le fichier a bien été créé
                 if not os.path.exists(file_path):
                     app.logger.error(f"Le fichier {file_path} n'a pas été créé correctement")
                     return jsonify({'response': 'Erreur lors de la sauvegarde du fichier', 'success': False})
                 
-                # Extraire le texte du fichier
-                app.logger.info("Extraction du texte du fichier")
-                texte = extraire_texte_fichier(file_path)
+                # Pour déboguer, utiliser une approche très simple pour les fichiers texte
+                if file_path.lower().endswith('.txt'):
+                    try:
+                        # Essayer d'ouvrir directement le fichier en mode texte
+                        with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
+                            texte = f.read()
+                            app.logger.info(f"Lecture directe du fichier texte: {len(texte)} caractères")
+                    except Exception as txt_err:
+                        app.logger.error(f"Erreur lecture directe: {str(txt_err)}")
+                        # Utiliser le contenu déjà lu en mémoire
+                        texte = file_content.decode('utf-8', errors='replace')
+                        app.logger.info(f"Décodage du contenu binaire: {len(texte)} caractères")
+                else:
+                    # Pour les autres types de fichiers, utiliser l'extraction normale
+                    app.logger.info("Extraction du texte du fichier")
+                    texte = extraire_texte_fichier(file_path)
                 
                 if not texte or texte.startswith("Erreur lors de"):
                     app.logger.warning(f"Problème d'extraction du texte: {texte}")
                     return jsonify({'response': texte or 'Erreur lors de l\'extraction du texte', 'success': False})
                 
                 # Analyser le texte avec l'IA
-                app.logger.info("Analyse du texte avec l'IA")
+                app.logger.info(f"Analyse du texte avec l'IA, longueur: {len(texte)} caractères")
                 analyse = analyser_document_avec_ia(texte, document_type)
                 
                 if not analyse or analyse.startswith("Erreur") or analyse.startswith("Exception"):
@@ -477,19 +444,55 @@ def session_status():
     }
     return jsonify(status)
 
-@app.route('/debug', methods=['GET'])
-def debug_info():
-    """Endpoint de débogage pour vérifier l'état de l'application"""
-    debug_data = {
-        'session_active': bool(session),
-        'session_id': session.get('_id', 'non défini'),
-        'analyses_present': 'analyses' in session,
-        'api_key_configured': bool(API_KEY),
-        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
-        'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
-        'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
-    }
-    return jsonify(debug_data)
+@app.route('/test_api', methods=['GET'])
+def test_api():
+    """Endpoint pour tester la connexion à l'API OpenAI"""
+    try:
+        headers = {
+            "Authorization": f"Bearer {API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": "gpt-4o",
+            "messages": [
+                {"role": "system", "content": "Tu es un assistant."},
+                {"role": "user", "content": "Dis simplement 'La connexion à l'API fonctionne correctement.'"}
+            ],
+            "max_tokens": 50
+        }
+        
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=data,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            content = response.json()["choices"][0]["message"]["content"]
+            return jsonify({
+                "success": True,
+                "message": "API OpenAI accessible",
+                "response": content,
+                "api_key_present": bool(API_KEY),
+                "api_key_preview": f"{API_KEY[:4]}...{API_KEY[-4:]}" if API_KEY and len(API_KEY) > 8 else "N/A"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "message": f"Erreur API: {response.status_code}",
+                "response": response.text,
+                "api_key_present": bool(API_KEY),
+                "api_key_preview": f"{API_KEY[:4]}...{API_KEY[-4:]}" if API_KEY and len(API_KEY) > 8 else "N/A"
+            })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"Erreur lors du test API: {str(e)}",
+            "api_key_present": bool(API_KEY),
+            "api_key_preview": f"{API_KEY[:4]}...{API_KEY[-4:]}" if API_KEY and len(API_KEY) > 8 else "N/A"
+        })
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
