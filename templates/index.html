@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Conversation avec votre conseiller Iamonjob</title>
+    <title>IAMONJOB - Votre conseiller en insertion professionnelle</title>
     <style>
         body {
             font-family: 'Garamond', serif;
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f5f5dc;
         }
         .chat-container {
-            height: 500px;
+            height: 400px;
             overflow-y: auto;
             border: 1px solid #ccc;
             padding: 15px;
@@ -26,7 +26,7 @@
             max-width: 80%;
             margin-left: auto;
         }
-        .cyrano-message {
+        .iamonjob-message {
             background-color: #f9e4b7;
             padding: 10px;
             margin: 10px 0;
@@ -50,12 +50,24 @@
             cursor: pointer;
             font-family: inherit;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         h1 {
             color: #8b0000;
             text-align: center;
+            margin-bottom: 5px;
         }
-        .cyrano-portrait {
-            width: 100px;
+        h3 {
+            color: #333;
+            text-align: center;
+            margin-top: 0;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+        .logo {
+            width: 300px;
             height: auto;
             display: block;
             margin: 0 auto 20px;
@@ -66,40 +78,226 @@
             background-color: #f0e9d2;
             border-radius: 10px;
         }
-        .upload-container form {
+        .upload-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fff;
+        }
+        .upload-section h4 {
+            margin-top: 0;
+            color: #8b0000;
+        }
+        .upload-form {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-        #upload-status {
+        .upload-status {
             margin-top: 10px;
             font-style: italic;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-red {
+            background-color: #ff6666;
+        }
+        .status-green {
+            background-color: #66cc66;
+        }
+        .required-tag {
+            color: red;
+            font-weight: bold;
+        }
+        .info-text {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
         }
     </style>
 </head>
 <body>
-    <h1>Conversation avec votre conseiller Iamonjob</h1>
-    <center><img src="https://cbe-sud94.org/wp-content/uploads/2024/06/Caroussel-GPTs-min-1-300x180.jpg" alt="IAMONJOB" class="logo"> </center>
+    <h1>IAMONJOB</h1>
+    <h3>Votre conseiller en insertion professionnelle</h3>
+    <img src="https://cbe-sud94.org/wp-content/uploads/2024/06/Caroussel-GPTs-min-1-300x180.jpg" alt="IAMONJOB" class="logo">
     
-    <!-- Nouvelle section pour le téléchargement de documents -->
+    <!-- Section pour le téléchargement de documents -->
     <div class="upload-container">
-        <form id="upload-form" enctype="multipart/form-data">
-            <label for="document">Télécharger un document pour que votre coach Iamonjob l'analyse:</label>
-            <input type="file" id="document" name="document" accept=".txt,.pdf">
-            <button type="submit">Envoyer le document</button>
-        </form>
-        <div id="upload-status"></div>
+        <h3>Documents nécessaires pour votre accompagnement</h3>
+        
+        <!-- Dossier Initial (OBLIGATOIRE) -->
+        <div class="upload-section" id="section-dossier">
+            <h4>Dossier initial d'analyse <span class="required-tag">*OBLIGATOIRE*</span></h4>
+            <p class="info-text">Le dossier initial réalisé par le CBE Sud 94 est indispensable pour débuter l'accompagnement.</p>
+            <form class="upload-form" id="dossier-form" enctype="multipart/form-data">
+                <input type="hidden" name="document_type" value="dossier_initial">
+                <input type="file" id="dossier-file" name="document" accept=".txt,.pdf">
+                <button type="submit" id="dossier-submit">Télécharger le dossier initial</button>
+            </form>
+            <div class="upload-status" id="dossier-status">
+                <span class="status-indicator status-red" id="dossier-indicator"></span>
+                Non téléchargé
+            </div>
+        </div>
+        
+        <!-- CV (OPTIONNEL pour commencer) -->
+        <div class="upload-section" id="section-cv">
+            <h4>CV actualisé</h4>
+            <p class="info-text">Téléchargez votre CV le plus récent pour obtenir une analyse actualisée.</p>
+            <form class="upload-form" id="cv-form" enctype="multipart/form-data">
+                <input type="hidden" name="document_type" value="cv">
+                <input type="file" id="cv-file" name="document" accept=".txt,.pdf">
+                <button type="submit" id="cv-submit">Télécharger votre CV</button>
+            </form>
+            <div class="upload-status" id="cv-status">
+                <span class="status-indicator status-red" id="cv-indicator"></span>
+                Non téléchargé
+            </div>
+        </div>
+        
+        <!-- Offre d'emploi (OPTIONNEL) -->
+        <div class="upload-section" id="section-offre">
+            <h4>Offre d'emploi</h4>
+            <p class="info-text">Téléchargez une offre d'emploi qui vous intéresse pour recevoir des conseils personnalisés.</p>
+            <form class="upload-form" id="offre-form" enctype="multipart/form-data">
+                <input type="hidden" name="document_type" value="offre_emploi">
+                <input type="file" id="offre-file" name="document" accept=".txt,.pdf">
+                <button type="submit" id="offre-submit">Télécharger une offre d'emploi</button>
+            </form>
+            <div class="upload-status" id="offre-status">
+                <span class="status-indicator status-red" id="offre-indicator"></span>
+                Non téléchargé
+            </div>
+        </div>
     </div>
     
+    <!-- Container de chat -->
     <div class="chat-container" id="chat-container">
-        <div class="cyrano-message">Je vais analyser le document qui vous a été remis et prendre le relai pour continuer à travailler avec vous</div>
+        <div class="iamonjob-message">Bonjour et bienvenue sur IAMONJOB. Veuillez commencer par télécharger le dossier initial d'analyse réalisé par le CBE Sud 94. Ce document est essentiel pour démarrer votre accompagnement personnalisé.</div>
     </div>
+    
+    <!-- Zone de saisie de message -->
     <div class="input-container">
-        <input type="text" id="message-input" placeholder="Écrivez votre message ici...">
-        <button onclick="sendMessage()">Envoyer</button>
+        <input type="text" id="message-input" placeholder="Écrivez votre message ici..." disabled>
+        <button onclick="sendMessage()" id="send-button" disabled>Envoyer</button>
     </div>
 
     <script>
+        // Vérifier l'état des documents au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            checkSessionStatus();
+        });
+        
+        // Fonction pour vérifier l'état des documents téléchargés
+        function checkSessionStatus() {
+            fetch('/session_status')
+                .then(response => response.json())
+                .then(data => {
+                    updateDocumentStatus('dossier', data.dossier_initial);
+                    updateDocumentStatus('cv', data.cv);
+                    updateDocumentStatus('offre', data.offre_emploi);
+                    
+                    // Activer le chat si le dossier initial est présent
+                    if (data.dossier_initial) {
+                        document.getElementById('message-input').disabled = false;
+                        document.getElementById('send-button').disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lors de la vérification de l\'état de la session:', error);
+                });
+        }
+        
+        // Mettre à jour l'indicateur visuel pour un document
+        function updateDocumentStatus(documentType, isUploaded) {
+            const indicator = document.getElementById(`${documentType}-indicator`);
+            const statusText = document.getElementById(`${documentType}-status`);
+            
+            if (isUploaded) {
+                indicator.className = 'status-indicator status-green';
+                statusText.innerHTML = `<span class="status-indicator status-green"></span> Téléchargé et analysé`;
+            } else {
+                indicator.className = 'status-indicator status-red';
+                statusText.innerHTML = `<span class="status-indicator status-red"></span> Non téléchargé`;
+            }
+        }
+        
+        // Gérer le téléchargement du dossier initial
+        document.getElementById('dossier-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadDocument(this, 'dossier');
+        });
+        
+        // Gérer le téléchargement du CV
+        document.getElementById('cv-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadDocument(this, 'cv');
+        });
+        
+        // Gérer le téléchargement de l'offre d'emploi
+        document.getElementById('offre-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            uploadDocument(this, 'offre');
+        });
+        
+        // Fonction générique pour télécharger un document
+        function uploadDocument(form, documentType) {
+            const formData = new FormData(form);
+            const statusElement = document.getElementById(`${documentType}-status`);
+            
+            // Afficher un message de chargement
+            statusElement.innerHTML = '<span class="status-indicator status-red"></span> Téléchargement en cours...';
+            
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Mettre à jour le statut
+                updateDocumentStatus(documentType, true);
+                
+                // Ajouter les messages au chat
+                const chatContainer = document.getElementById('chat-container');
+                
+                // Message utilisateur
+                const userMessageDiv = document.createElement('div');
+                userMessageDiv.className = 'user-message';
+                userMessageDiv.textContent = `J'ai téléchargé ${documentType === 'dossier' ? 'le dossier initial' : 
+                                              documentType === 'cv' ? 'mon CV' : 'une offre d'emploi'}.`;
+                chatContainer.appendChild(userMessageDiv);
+                
+                // Réponse de l'IA
+                const iaMessageDiv = document.createElement('div');
+                iaMessageDiv.className = 'iamonjob-message';
+                iaMessageDiv.textContent = data.response;
+                chatContainer.appendChild(iaMessageDiv);
+                
+                // Faire défiler vers le bas
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                
+                // Activer le chat si c'était le dossier initial
+                if (documentType === 'dossier') {
+                    document.getElementById('message-input').disabled = false;
+                    document.getElementById('send-button').disabled = false;
+                }
+                
+                // Mettre à jour tous les statuts
+                checkSessionStatus();
+            })
+            .catch(error => {
+                statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error}`;
+                console.error('Erreur:', error);
+            });
+        }
+        
+        // Fonction pour envoyer un message
         function sendMessage() {
             const messageInput = document.getElementById('message-input');
             const message = messageInput.value.trim();
@@ -128,11 +326,11 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    // Afficher la réponse de Cyrano
-                    const cyranoMessageDiv = document.createElement('div');
-                    cyranoMessageDiv.className = 'cyrano-message';
-                    cyranoMessageDiv.textContent = data.response;
-                    chatContainer.appendChild(cyranoMessageDiv);
+                    // Afficher la réponse de l'IA
+                    const iaMessageDiv = document.createElement('div');
+                    iaMessageDiv.className = 'iamonjob-message';
+                    iaMessageDiv.textContent = data.response;
+                    chatContainer.appendChild(iaMessageDiv);
                     
                     // Faire défiler vers le bas à nouveau
                     chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -142,44 +340,6 @@
                 });
             }
         }
-        
-        // Nouvelle fonction pour gérer le téléchargement de documents
-        document.getElementById('upload-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            
-            // Afficher un message de chargement
-            document.getElementById('upload-status').textContent = 'Téléchargement en cours...';
-            
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('upload-status').textContent = 'Document téléchargé avec succès!';
-                
-                // Afficher le message de l'utilisateur
-                const chatContainer = document.getElementById('chat-container');
-                const userMessageDiv = document.createElement('div');
-                userMessageDiv.className = 'user-message';
-                userMessageDiv.textContent = 'J\'ai téléchargé un document pour analyse.';
-                chatContainer.appendChild(userMessageDiv);
-                
-                // Afficher la réponse de Cyrano
-                const cyranoMessageDiv = document.createElement('div');
-                cyranoMessageDiv.className = 'cyrano-message';
-                cyranoMessageDiv.textContent = data.response;
-                chatContainer.appendChild(cyranoMessageDiv);
-                
-                // Faire défiler vers le bas
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-            })
-            .catch(error => {
-                document.getElementById('upload-status').textContent = 'Erreur lors du téléchargement: ' + error;
-                console.error('Erreur:', error);
-            });
-        });
         
         // Permettre l'envoi en appuyant sur Entrée
         document.getElementById('message-input').addEventListener('keypress', function(e) {
