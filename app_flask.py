@@ -5,8 +5,12 @@ from werkzeug.utils import secure_filename
 import PyPDF2  # Pour les PDF
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "iamonjob_secret_key")  # Clé pour les sessions
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
+
+# Dictionnaire pour stocker les contextes de conversation par session
+conversation_contexts = {}
 
 # Créer le dossier uploads s'il n'existe pas
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -125,18 +129,28 @@ def analyser_document_avec_cyrano(texte):
     except Exception as e:
         return f"Exception: {str(e)}"
 
-# Nouvelle fonction pour le chat avec le coach IA
-def chat_avec_cyrano(message):
+def chat_avec_cyrano(message, session_id=None):
     """Fonction pour discuter avec le coach IA"""
+    
+    # Récupérer le contexte de la conversation si disponible
+    conversation_context = ""
+    if session_id and session_id in conversation_contexts:
+        conversation_context = conversation_contexts[session_id]
+    
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
     
+    # Préparer le prompt avec le contexte de la conversation si disponible
+    system_message = cyrano_system_prompt
+    if conversation_context:
+        system_message += f"\n\nCONTEXTE DE LA CONVERSATION:\n{conversation_context}"
+    
     data = {
         "model": "gpt-4o",
         "messages": [
-            {"role": "system", "content": cyrano_system_prompt},
+            {"role": "system", "content": system_message},
             {"role": "user", "content": message}
         ],
         "max_tokens": 2000
@@ -163,8 +177,12 @@ def index():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    user_message = request.json.get('message', '')
-    cyrano_response = chat_avec_cyrano(user_message)
+    data = request.json
+    user_message = data.get('message', '')
+    session_id = request.cookies.get('session_id', None)
+    
+    cyrano_response = chat_avec_cyrano(user_message, session_id)
+    
     return jsonify({'response': cyrano_response})
 
 @app.route('/upload', methods=['POST'])
@@ -173,6 +191,7 @@ def upload_file():
         return jsonify({'response': 'Aucun fichier n\'a été téléchargé'})
     
     file = request.files['document']
+    session_id = request.cookies.get('session_id', None)
     
     if file.filename == '':
         return jsonify({'response': 'Aucun fichier sélectionné'})
@@ -188,6 +207,10 @@ def upload_file():
         # Analyser le texte avec Cyrano
         analyse = analyser_document_avec_cyrano(texte)
         
+        # Stocker l'analyse dans le contexte de la conversation
+        if session_id:
+            conversation_contexts[session_id] = f"Document analysé: {filename}\nAnalyse: {analyse[:500]}..."
+        
         return jsonify({'response': analyse})
 
 # Nouvelle route pour comparer CV et offre d'emploi
@@ -198,6 +221,7 @@ def comparer_cv_offre():
     
     cv_file = request.files['cv']
     offre_file = request.files['offre']
+    session_id = request.cookies.get('session_id', None)
     
     if cv_file.filename == '' or offre_file.filename == '':
         return jsonify({'response': 'Veuillez sélectionner les deux fichiers'})
@@ -237,6 +261,10 @@ Pourriez-vous :
     
     # Utiliser la fonction d'analyse existante
     analyse = analyser_document_avec_cyrano(message)
+    
+    # Stocker l'analyse dans le contexte de la conversation
+    if session_id:
+        conversation_contexts[session_id] = f"Comparaison CV-Offre effectuée.\nRésumé de l'analyse: {analyse[:500]}..."
     
     return jsonify({'response': analyse})
 
