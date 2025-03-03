@@ -51,14 +51,8 @@ def extraire_texte_fichier(file_path):
     else:
         return "Ce type de fichier n'est pas pris en charge pour l'analyse."
 
-def analyser_document_avec_cyrano(texte):
-    """Analyser un document avec l'API OpenAI"""
-    headers = {
-        "Authorization": f"Bearer {API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    cyrano_system_prompt = """Tu es un coach en insertion professionnelle
+# Prompt système pour le coach emploi
+cyrano_system_prompt = """Tu es un coach en insertion professionnelle
 MISSION
 Tu accompagnes les demandeurs d'emploi déjà suivis par le CBE Sud 94 vers l'autonomie dans l'optimisation de leur candidature (CV, LM, entretiens), en t'appuyant sur des analyses personnalisées et des échanges collaboratifs.
 
@@ -93,10 +87,14 @@ Contextualisation: Adapter l'accompagnement aux profils expérimentés (focus su
 Autonomisation: Fournir méthodologies et outils réutilisables
 Adaptabilité: Ajuster le niveau de détail selon les besoins exprimés
 Progression: Ouvrir systématiquement vers des pistes d'approfondissement
-
-
-
 """
+
+def analyser_document_avec_cyrano(texte):
+    """Analyser un document avec l'API OpenAI"""
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
     
     # Limiter la taille du texte pour éviter de dépasser les tokens
     texte_limite = texte[:4000] + "..." if len(texte) > 4000 else texte
@@ -112,7 +110,37 @@ Progression: Ouvrir systématiquement vers des pistes d'approfondissement
         "max_tokens": 2000
     }
  
+    try:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=data,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            return response.json()["choices"][0]["message"]["content"]
+        else:
+            return f"Erreur API: {response.status_code} - {response.text}"
+    except Exception as e:
+        return f"Exception: {str(e)}"
 
+# Nouvelle fonction pour le chat avec le coach IA
+def chat_avec_cyrano(message):
+    """Fonction pour discuter avec le coach IA"""
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "model": "gpt-4o",
+        "messages": [
+            {"role": "system", "content": cyrano_system_prompt},
+            {"role": "user", "content": message}
+        ],
+        "max_tokens": 2000
+    }
     
     try:
         response = requests.post(
@@ -161,6 +189,56 @@ def upload_file():
         analyse = analyser_document_avec_cyrano(texte)
         
         return jsonify({'response': analyse})
+
+# Nouvelle route pour comparer CV et offre d'emploi
+@app.route('/comparer', methods=['POST'])
+def comparer_cv_offre():
+    if 'cv' not in request.files or 'offre' not in request.files:
+        return jsonify({'response': 'Veuillez télécharger à la fois un CV et une offre d\'emploi'})
+    
+    cv_file = request.files['cv']
+    offre_file = request.files['offre']
+    
+    if cv_file.filename == '' or offre_file.filename == '':
+        return jsonify({'response': 'Veuillez sélectionner les deux fichiers'})
+    
+    # Sauvegarder les fichiers
+    cv_filename = secure_filename(cv_file.filename)
+    offre_filename = secure_filename(offre_file.filename)
+    
+    cv_path = os.path.join(app.config['UPLOAD_FOLDER'], cv_filename)
+    offre_path = os.path.join(app.config['UPLOAD_FOLDER'], offre_filename)
+    
+    cv_file.save(cv_path)
+    offre_file.save(offre_path)
+    
+    # Extraire le texte des fichiers
+    cv_texte = extraire_texte_fichier(cv_path)
+    offre_texte = extraire_texte_fichier(offre_path)
+    
+    # Limiter la taille des textes pour l'API
+    cv_texte = cv_texte[:3000] + "..." if len(cv_texte) > 3000 else cv_texte
+    offre_texte = offre_texte[:3000] + "..." if len(offre_texte) > 3000 else offre_texte
+    
+    # Préparer le message pour l'analyse
+    message = f"""Voici une offre d'emploi:
+    
+{offre_texte}
+
+Et voici le CV du candidat:
+
+{cv_texte}
+
+Pourriez-vous :
+1. Identifier les correspondances entre le CV et l'offre
+2. Suggérer des adaptations spécifiques du CV pour cette offre
+3. Proposer les éléments clés à mettre en avant dans une lettre de motivation
+4. Préparer aux questions probables en entretien pour cette offre"""
+    
+    # Utiliser la fonction d'analyse existante
+    analyse = analyser_document_avec_cyrano(message)
+    
+    return jsonify({'response': analyse})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
