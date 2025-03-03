@@ -208,8 +208,17 @@ if __name__ == '__main__':
 </html>
         ''')
     
-    # Pour le développement local
-    app.run(debug=True)
-    
-    # Pour le déploiement en production, utilisez plutôt :
-    # app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)), debug=False)
+# Créer le dossier templates s'il n'existe pas
+if not os.path.exists('templates'):
+    os.makedirs('templates')
+
+# Créer le fichier HTML s'il n'existe pas
+with open('templates/index.html', 'w') as f:
+    f.write('''
+    # Contenu HTML ici
+    ''')
+
+if __name__ == '__main__':
+    # Pour le déploiement en production
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)
