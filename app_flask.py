@@ -215,16 +215,63 @@ def analyser_document_avec_ia(texte, document_type):
     if not API_KEY:
         app.logger.error("Clé API OpenAI non configurée")
         return "Erreur: La clé API OpenAI n'est pas configurée. Veuillez contacter l'administrateur."
-        
-    # Utiliser une approche simplifiée avec un système prompt minimal pour tester
-    system_prompt = "Tu es un coach en insertion professionnelle expérimenté. Analyse ce document et fournis des conseils utiles."
     
-    # Limiter à 2000 caractères pour commencer et garantir que l'API reçoit quelque chose
-    texte_limite = texte[:2000] + "..." if len(texte) > 2000 else texte
+    # Construire le prompt système selon le type de document
+    if document_type == "dossier_initial":
+        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
+MISSION: Analyser ce dossier initial qui contient l'analyse du CV et des recommandations.
+FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
+- Utilise des titres et sous-titres clairs
+- Utilise des listes à puces pour les points importants
+- Sépare bien les sections avec des sauts de ligne
+- Ne montre pas les symboles markdown dans ta réponse
+"""
+    elif document_type == "cv":
+        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
+MISSION: Analyser ce CV et fournir des conseils d'amélioration.
+FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
+- Utilise des titres et sous-titres clairs
+- Utilise des listes à puces pour les points importants
+- Sépare bien les sections avec des sauts de ligne
+- Ne montre pas les symboles markdown dans ta réponse
+"""
+    elif document_type == "offre_emploi":
+        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
+MISSION: Analyser cette offre d'emploi et fournir des conseils pour y postuler.
+FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
+- Utilise des titres et sous-titres clairs
+- Utilise des listes à puces pour les points importants
+- Sépare bien les sections avec des sauts de ligne
+- Ne montre pas les symboles markdown dans ta réponse
+"""
+    else:
+        system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
+MISSION: Analyser ce document et fournir des conseils utiles.
+FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
+- Utilise des titres et sous-titres clairs
+- Utilise des listes à puces pour les points importants
+- Sépare bien les sections avec des sauts de ligne
+- Ne montre pas les symboles markdown dans ta réponse
+"""
     
-    message_utilisateur = f"Voici un document à analyser ({document_type}):\n\n{texte_limite}\n\nMerci de confirmer que tu peux lire ce document et d'en faire une analyse simple."
+    # Limiter le texte à 4000 caractères
+    texte_limite = texte[:4000] + "..." if len(texte) > 4000 else texte
     
-    # Configuration de base pour l'appel API
+    message_utilisateur = f"Voici un document à analyser ({document_type}):\n\n{texte_limite}\n\nMerci de l'analyser et de fournir des conseils pertinents."
+    
+    # Si c'est une offre d'emploi et qu'on a un CV dans la session, ajouter le contexte
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    if document_type == "offre_emploi" and 'analyses' in session and 'cv' in session['analyses']:
+        # Limiter la taille du contexte CV
+        cv_context = session['analyses']['cv'][:1000] + "..." if len(session['analyses']['cv']) > 1000 else session['analyses']['cv']
+        messages.append({"role": "assistant", "content": f"Contexte du CV du candidat: {cv_context}"})
+    
+    messages.append({"role": "user", "content": message_utilisateur})
+    
+    app.logger.info(f"Envoi de {len(messages)} messages à l'API")
+    
+    # Configuration pour l'appel API
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
@@ -232,21 +279,16 @@ def analyser_document_avec_ia(texte, document_type):
     
     data = {
         "model": "gpt-4o",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": message_utilisateur}
-        ],
-        "max_tokens": 500  # Limiter la réponse pour ce test
+        "messages": messages,
+        "max_tokens": 1000
     }
-    
-    app.logger.info("Envoi d'une requête test à l'API OpenAI")
     
     try:
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=30
+            timeout=45
         )
         
         app.logger.info(f"Réponse reçue, statut HTTP: {response.status_code}")
@@ -255,9 +297,11 @@ def analyser_document_avec_ia(texte, document_type):
             try:
                 analyse = response.json()["choices"][0]["message"]["content"]
                 app.logger.info(f"Analyse reçue, longueur: {len(analyse)} caractères")
-                app.logger.info(f"Début de l'analyse: {analyse[:100]}...")
                 
-                # Si cette requête test a fonctionné, on ajoute le contenu à la session
+                # Nettoyer le formatage si nécessaire (enlever les caractères markdown)
+                analyse = analyse.replace('**', '').replace('##', '').replace('*', '• ')
+                
+                # Sauvegarder l'analyse dans la session
                 sauvegarder_analyse_dans_session(analyse, document_type)
                 return analyse
             except Exception as parse_error:
@@ -267,15 +311,9 @@ def analyser_document_avec_ia(texte, document_type):
             error_text = response.text[:500] if response.text else "Pas de détails disponibles"
             app.logger.error(f"Erreur API: {response.status_code} - {error_text}")
             return f"Erreur API ({response.status_code}): {error_text}"
-    except requests.exceptions.Timeout:
-        app.logger.error("Timeout lors de l'appel à l'API OpenAI")
-        return "L'API OpenAI n'a pas répondu dans le délai imparti. Veuillez réessayer."
-    except requests.exceptions.RequestException as req_error:
-        app.logger.error(f"Erreur de requête HTTP: {str(req_error)}")
-        return f"Erreur lors de la communication avec l'API: {str(req_error)}"
     except Exception as e:
-        app.logger.error(f"Exception non gérée: {str(e)}")
-        return f"Erreur inattendue: {str(e)}"
+        app.logger.error(f"Exception lors de l'appel API: {str(e)}")
+        return f"Erreur lors de la communication avec l'API: {str(e)}"
 
 @app.route('/')
 def index():
@@ -299,20 +337,12 @@ def chat_avec_ia(message):
         "Content-Type": "application/json"
     }
     
-    system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION
-Tu accompagnes les demandeurs d'emploi sur la base du dossier initial réalisé par le CBE Sud 94.
-Tu aides à optimiser les candidatures (CV, lettres de motivation, préparation aux entretiens).
-Tu t'appuies sur les analyses précédentes pour offrir un accompagnement personnalisé et progressif.
-
-APPROCHE
-- Adapter tes conseils au profil spécifique du candidat
-- Fournir des retours constructifs et actionnables
-- Aider à faire le lien entre le profil du candidat et les offres d'emploi
-- Encourager l'autonomie tout en apportant un soutien expert
-
-IMPORTANT
-Tu n'as accès qu'aux documents qui ont été téléchargés. Si le candidat mentionne un document que tu n'as pas vu, demande-lui de le télécharger.
+    system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
+FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
+- Utilise des titres et sous-titres clairs
+- Utilise des listes à puces pour les points importants
+- Sépare bien les sections avec des sauts de ligne
+- Ne montre pas les symboles markdown dans ta réponse
 """
     
     messages = [{"role": "system", "content": system_prompt},
@@ -343,7 +373,10 @@ Tu n'as accès qu'aux documents qui ont été téléchargés. Si le candidat men
         )
         
         if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
+            content = response.json()["choices"][0]["message"]["content"]
+            # Nettoyer le formatage markdown
+            content = content.replace('**', '').replace('##', '').replace('*', '• ')
+            return content
         else:
             return f"Erreur API: {response.status_code} - {response.text}"
     except Exception as e:
