@@ -1,12 +1,29 @@
 import os
 import requests
+import logging
 from flask import Flask, render_template, request, jsonify, session
 from werkzeug.utils import secure_filename
 import PyPDF2
 import json
+import sys
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Nécessaire pour utiliser les sessions
+# Utiliser une clé fixe ou depuis les variables d'environnement pour que la session persiste
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key_for_dev")  # Clé fixe pour les sessions
+
+# Configuration des logs
+if os.environ.get('FLASK_ENV') == 'production':
+    # En production, écrire les logs dans la sortie standard
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.INFO)
+    app.logger.addHandler(handler)
+    app.logger.setLevel(logging.INFO)
+else:
+    # En développement, configurer les logs plus détaillés
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    )
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
 
@@ -246,27 +263,69 @@ Tu n'as accès qu'aux documents qui ont été téléchargés. Si le candidat men
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'document' not in request.files:
-        return jsonify({'response': 'Aucun fichier n\'a été téléchargé'})
-    
-    file = request.files['document']
-    document_type = request.form.get('document_type', 'document_general')
-    
-    if file.filename == '':
-        return jsonify({'response': 'Aucun fichier sélectionné'})
-    
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+    try:
+        app.logger.info("Début de la requête de téléchargement")
         
-        # Extraire le texte du fichier
-        texte = extraire_texte_fichier(file_path)
+        if 'document' not in request.files:
+            app.logger.warning("Aucun fichier dans la requête")
+            return jsonify({'response': 'Aucun fichier n\'a été téléchargé', 'success': False})
         
-        # Analyser le texte avec l'IA
-        analyse = analyser_document_avec_ia(texte, document_type)
+        file = request.files['document']
+        document_type = request.form.get('document_type', 'document_general')
+        app.logger.info(f"Type de document: {document_type}")
         
-        return jsonify({'response': analyse})
+        if file.filename == '':
+            app.logger.warning("Nom de fichier vide")
+            return jsonify({'response': 'Aucun fichier sélectionné', 'success': False})
+        
+        if file:
+            # Créer le dossier uploads s'il n'existe pas
+            if not os.path.exists(app.config['UPLOAD_FOLDER']):
+                os.makedirs(app.config['UPLOAD_FOLDER'])
+                app.logger.info(f"Dossier {app.config['UPLOAD_FOLDER']} créé")
+            
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            app.logger.info(f"Sauvegarde du fichier: {file_path}")
+            
+            try:
+                file.save(file_path)
+                app.logger.info("Fichier sauvegardé avec succès")
+                
+                # Vérifier que le fichier a bien été créé
+                if not os.path.exists(file_path):
+                    app.logger.error(f"Le fichier {file_path} n'a pas été créé correctement")
+                    return jsonify({'response': 'Erreur lors de la sauvegarde du fichier', 'success': False})
+                
+                # Extraire le texte du fichier
+                app.logger.info("Extraction du texte du fichier")
+                texte = extraire_texte_fichier(file_path)
+                
+                if not texte or texte.startswith("Erreur lors de"):
+                    app.logger.warning(f"Problème d'extraction du texte: {texte}")
+                    return jsonify({'response': texte or 'Erreur lors de l\'extraction du texte', 'success': False})
+                
+                # Analyser le texte avec l'IA
+                app.logger.info("Analyse du texte avec l'IA")
+                analyse = analyser_document_avec_ia(texte, document_type)
+                
+                if not analyse or analyse.startswith("Erreur") or analyse.startswith("Exception"):
+                    app.logger.warning(f"Problème d'analyse: {analyse}")
+                    return jsonify({'response': analyse or 'Erreur lors de l\'analyse', 'success': False})
+                
+                # Si tout s'est bien passé, retourner la réponse
+                app.logger.info("Téléchargement et analyse réussis")
+                return jsonify({'response': analyse, 'success': True})
+                
+            except Exception as e:
+                app.logger.error(f"Exception lors de la sauvegarde du fichier: {str(e)}")
+                return jsonify({'response': f'Erreur lors de la sauvegarde du fichier: {str(e)}', 'success': False})
+        
+        return jsonify({'response': 'Erreur inconnue lors du téléchargement', 'success': False})
+        
+    except Exception as e:
+        app.logger.error(f"Exception non gérée: {str(e)}")
+        return jsonify({'response': f'Erreur inattendue: {str(e)}', 'success': False})
 
 @app.route('/session_status', methods=['GET'])
 def session_status():
@@ -274,9 +333,25 @@ def session_status():
     status = {
         'dossier_initial': 'analyses' in session and 'dossier_initial' in session['analyses'],
         'cv': 'analyses' in session and 'cv' in session['analyses'],
-        'offre_emploi': 'analyses' in session and 'offre_emploi' in session['analyses']
+        'offre_emploi': 'analyses' in session and 'offre_emploi' in session['analyses'],
+        'session_id': session.get('_id', 'non défini'),  # Identifiant de session pour débogage
+        'session_contents': {k: bool(v) for k, v in session.items()}  # Résumé du contenu de la session
     }
     return jsonify(status)
+
+@app.route('/debug', methods=['GET'])
+def debug_info():
+    """Endpoint de débogage pour vérifier l'état de l'application"""
+    debug_data = {
+        'session_active': bool(session),
+        'session_id': session.get('_id', 'non défini'),
+        'analyses_present': 'analyses' in session,
+        'api_key_configured': bool(API_KEY),
+        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
+        'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
+        'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
+    }
+    return jsonify(debug_data)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
