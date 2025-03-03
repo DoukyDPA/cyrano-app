@@ -1,14 +1,122 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Conversation avec votre conseiller IAmonjob</title>
-    <!-- Les styles restent identiques -->
+    <title>Conversation avec votre conseiller Iamonjob</title>
     <style>
-        /* Vos styles existants */
+        body {
+            font-family: 'Garamond', serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5dc;
+        }
+        .chat-container {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 20px;
+            background-color: white;
+        }
+        .user-message {
+            background-color: #e6f7ff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 10px;
+            max-width: 80%;
+            margin-left: auto;
+        }
+        .cyrano-message {
+            background-color: #f9e4b7;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        .input-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 10px;
+            font-family: inherit;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #8b0000;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        h1 {
+            color: #8b0000;
+            text-align: center;
+        }
+        .cyrano-portrait {
+            width: 100px;
+            height: auto;
+            display: block;
+            margin: 0 auto 20px;
+        }
+        .upload-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f0e9d2;
+            border-radius: 10px;
+        }
+        .upload-container form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #upload-status {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        /* Nouveaux styles pour les onglets */
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ccc;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f0e9d2;
+            margin-right: 5px;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab.active {
+            background-color: #8b0000;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        /* Style pour le spinner de chargement */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #8b0000;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <h1>Conversation avec votre conseiller IAmonjob</h1>
+    <h1>Conversation avec votre conseiller Iamonjob</h1>
     <center><img src="https://cbe-sud94.org/wp-content/uploads/2024/06/Caroussel-GPTs-min-1-300x180.jpg" alt="IAMONJOB" class="logo"> </center>
     
     <!-- Onglets de navigation -->
@@ -18,28 +126,71 @@
         <div class="tab" data-tab="compare">Comparaison CV/Offre</div>
     </div>
     
-    <!-- Les contenus d'onglets restent les mêmes -->
+    <!-- Contenu de l'onglet chat -->
+    <div class="tab-content active" id="chat-tab">
+        <div class="chat-container" id="chat-container">
+            <div class="cyrano-message">Je vais analyser le document qui vous a été remis et prendre le relai pour continuer à travailler avec vous</div>
+        </div>
+        <div class="input-container">
+            <input type="text" id="message-input" placeholder="Écrivez votre message ici...">
+            <button onclick="sendMessage()">Envoyer</button>
+        </div>
+    </div>
     
+    <!-- Contenu de l'onglet Upload CV -->
+    <div class="tab-content" id="upload-cv-tab">
+        <div class="upload-container">
+            <form id="upload-form" enctype="multipart/form-data">
+                <label for="document">Télécharger un document pour que votre coach Iamonjob l'analyse:</label>
+                <input type="file" id="document" name="document" accept=".txt,.pdf">
+                <button type="submit">Envoyer le document</button>
+            </form>
+            <div id="upload-status"></div>
+        </div>
+        <div class="chat-container" id="upload-result-container">
+            <!-- Les résultats d'analyse seront affichés ici -->
+        </div>
+    </div>
+    
+    <!-- Contenu de l'onglet Comparaison CV/Offre -->
+    <div class="tab-content" id="compare-tab">
+        <div class="upload-container">
+            <form id="compare-form" enctype="multipart/form-data">
+                <label for="cv-file">Votre CV:</label>
+                <input type="file" id="cv-file" name="cv" accept=".txt,.pdf">
+                
+                <label for="offer-file">Offre d'emploi:</label>
+                <input type="file" id="offer-file" name="offre" accept=".txt,.pdf">
+                
+                <button type="submit">Comparer</button>
+            </form>
+            <div id="compare-status"></div>
+            <div class="spinner" id="compare-spinner"></div>
+        </div>
+        <div class="chat-container" id="compare-result-container">
+            <!-- Les résultats de comparaison seront affichés ici -->
+        </div>
+    </div>
+
     <script>
-        // Générer un identifiant de session unique
-        function generateSessionId() {
-            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
+        // Gestion des onglets
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                // Retirer la classe active de tous les onglets
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                // Ajouter la classe active à l'onglet cliqué
+                this.classList.add('active');
+                
+                // Masquer tous les contenus d'onglets
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // Afficher le contenu de l'onglet correspondant
+                const tabId = this.getAttribute('data-tab') + '-tab';
+                document.getElementById(tabId).classList.add('active');
             });
-        }
-        
-        // Stockage de l'identifiant de session
-        let sessionId = localStorage.getItem('iamonjob_session_id');
-        if (!sessionId) {
-            sessionId = generateSessionId();
-            localStorage.setItem('iamonjob_session_id', sessionId);
-        }
-        
-        // Définir un cookie de session
-        document.cookie = `session_id=${sessionId}; path=/; max-age=86400`;
-        
-        // Le reste du code JavaScript avec les modifications pour maintenir l'état de la conversation
+        });
         
         // Fonction pour envoyer un message dans le chat
         function sendMessage() {
@@ -70,7 +221,7 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    // Afficher la réponse de IAmonjob
+                    // Afficher la réponse de Cyrano
                     const cyranoMessageDiv = document.createElement('div');
                     cyranoMessageDiv.className = 'cyrano-message';
                     cyranoMessageDiv.textContent = data.response;
@@ -81,6 +232,12 @@
                 })
                 .catch(error => {
                     console.error('Erreur:', error);
+                    // Afficher un message d'erreur dans le chat
+                    const errorMessageDiv = document.createElement('div');
+                    errorMessageDiv.className = 'cyrano-message';
+                    errorMessageDiv.textContent = 'Désolé, une erreur est survenue lors de la communication avec le serveur.';
+                    chatContainer.appendChild(errorMessageDiv);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
                 });
             }
         }
@@ -101,7 +258,7 @@
             .then(data => {
                 document.getElementById('upload-status').textContent = 'Document téléchargé avec succès!';
                 
-                // Afficher la réponse dans l'onglet d'analyse
+                // Afficher la réponse de l'analyse
                 const resultContainer = document.getElementById('upload-result-container');
                 const cyranoMessageDiv = document.createElement('div');
                 cyranoMessageDiv.className = 'cyrano-message';
@@ -126,9 +283,6 @@
                 
                 // Faire défiler vers le bas
                 chatContainer.scrollTop = chatContainer.scrollHeight;
-                
-                // Basculer vers l'onglet chat pour continuer la conversation
-                document.querySelector('.tab[data-tab="chat"]').click();
             })
             .catch(error => {
                 document.getElementById('upload-status').textContent = 'Erreur lors du téléchargement: ' + error;
@@ -136,11 +290,11 @@
             });
         });
         
-        // Gestion de la comparaison CV/Offre avec le même comportement
+        // Gestion de la comparaison CV/Offre
         document.getElementById('compare-form').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            // Vérifications et traitement similaires
+            // Vérifier si les deux fichiers ont été téléchargés
             const cvFile = document.getElementById('cv-file').files[0];
             const offerFile = document.getElementById('offer-file').files[0];
             
@@ -151,6 +305,7 @@
             
             const formData = new FormData(this);
             
+            // Afficher un message de chargement et le spinner
             document.getElementById('compare-status').textContent = 'Comparaison en cours...';
             document.getElementById('compare-spinner').style.display = 'block';
             
@@ -160,43 +315,35 @@
             })
             .then(response => response.json())
             .then(data => {
+                // Masquer le spinner
                 document.getElementById('compare-spinner').style.display = 'none';
                 document.getElementById('compare-status').textContent = 'Comparaison terminée!';
                 
-                // Afficher la réponse dans l'onglet de comparaison
+                // Afficher la réponse de l'analyse
                 const resultContainer = document.getElementById('compare-result-container');
                 const cyranoMessageDiv = document.createElement('div');
                 cyranoMessageDiv.className = 'cyrano-message';
                 cyranoMessageDiv.textContent = data.response;
-                resultContainer.innerHTML = '';
+                resultContainer.innerHTML = ''; // Vider les résultats précédents
                 resultContainer.appendChild(cyranoMessageDiv);
                 
                 // Faire défiler vers le bas
                 resultContainer.scrollTop = resultContainer.scrollHeight;
-                
-                // Ajouter également au chat principal
-                const chatContainer = document.getElementById('chat-container');
-                const userMessageDiv = document.createElement('div');
-                userMessageDiv.className = 'user-message';
-                userMessageDiv.textContent = 'J\'ai demandé une comparaison entre mon CV et une offre d\'emploi.';
-                chatContainer.appendChild(userMessageDiv);
-                
-                const chatCyranoMessageDiv = document.createElement('div');
-                chatCyranoMessageDiv.className = 'cyrano-message';
-                chatCyranoMessageDiv.textContent = data.response;
-                chatContainer.appendChild(chatCyranoMessageDiv);
-                
-                // Basculer vers l'onglet chat pour continuer la conversation
-                document.querySelector('.tab[data-tab="chat"]').click();
             })
             .catch(error => {
+                // Masquer le spinner
                 document.getElementById('compare-spinner').style.display = 'none';
                 document.getElementById('compare-status').textContent = 'Erreur lors de la comparaison: ' + error;
                 console.error('Erreur:', error);
             });
         });
         
-        // Le reste du code JavaScript reste identique
+        // Permettre l'envoi en appuyant sur Entrée
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
     </script>
 </body>
 </html>
