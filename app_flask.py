@@ -104,7 +104,7 @@ Progression: Ouvrir systématiquement vers des pistes d'approfondissement
     message_utilisateur = f"Voici un document à analyser:\n\n{texte_limite}\n\nPouvez-vous m'en faire une analyse?"
     
     data = {
-        "model": "gpt-3.5-turbo",
+        "model": "gpt-4o",
         "messages": [
             {"role": "system", "content": cyrano_system_prompt},
             {"role": "user", "content": message_utilisateur}
