@@ -28,11 +28,57 @@
         }
         .iamonjob-message {
             background-color: #f9e4b7;
-            padding: 10px;
+            padding: 15px;
             margin: 10px 0;
             border-radius: 10px;
             max-width: 80%;
-            white-space: pre-line;  /* Respecter les sauts de ligne */
+        }
+        
+        /* Styles pour le formatage HTML à l'intérieur des messages */
+        .iamonjob-message h1 {
+            color: #8b0000;
+            font-size: 20px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        
+        .iamonjob-message h2 {
+            color: #8b4513;
+            font-size: 18px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+        
+        .iamonjob-message h3 {
+            color: #333;
+            font-size: 16px;
+            margin-top: 12px;
+            margin-bottom: 6px;
+        }
+        
+        .iamonjob-message p {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .iamonjob-message ul {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .iamonjob-message li {
+            margin-bottom: 5px;
+        }
+        
+        .iamonjob-message strong {
+            color: #8b0000;
+        }
+        
+        .iamonjob-message br {
+            display: block;
+            content: "";
+            margin-top: 10px;
         }
         .input-container {
             display: flex;
@@ -407,7 +453,7 @@
                     // Réponse de l'IA
                     const iaMessageDiv = document.createElement('div');
                     iaMessageDiv.className = 'iamonjob-message';
-                    iaMessageDiv.textContent = data.response;
+                    iaMessageDiv.innerHTML = data.response; // Utiliser innerHTML pour interpréter le HTML
                     chatContainer.appendChild(iaMessageDiv);
                     
                     // Faire défiler vers le bas
@@ -424,7 +470,7 @@
                         // Afficher un message explicite indiquant que le chat est maintenant actif
                         const activationMsg = document.createElement('div');
                         activationMsg.className = 'iamonjob-message';
-                        activationMsg.textContent = "Le dossier initial a bien été téléchargé. Vous pouvez maintenant interagir avec votre conseiller IAMONJOB.";
+                        activationMsg.innerHTML = "<h2>Le dossier initial a bien été téléchargé</h2><p>Vous pouvez maintenant interagir avec votre conseiller IAMONJOB.</p>";
                         chatContainer.appendChild(activationMsg);
                     }
                     
