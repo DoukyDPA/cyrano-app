@@ -72,6 +72,35 @@ import PyPDF2
 import json
 import sys
 
+# Ajoutez cette fonction quelque part au début du fichier, 
+# après les imports mais avant les routes
+def formatter_simple(texte):
+    """Version ultra-simplifiée du formattage HTML"""
+    if not texte:
+        return ""
+    
+    # 1. Appliquer les transformations de base
+    texte = texte.replace('\n\n', '<br><br>')  # Doubles sauts de ligne
+    texte = texte.replace('# ', '<h2>')        # Titres
+    texte = texte.replace('\n## ', '</h2><h3>') # Sous-titres
+    texte = texte.replace('\n### ', '</h3><h4>') # Sous-sous-titres
+    texte = texte.replace('**', '<strong>')     # Début de gras
+    texte = texte.replace('**', '</strong>')    # Fin de gras (imparfait mais simple)
+    
+    # 2. Remplacer les listes à puces
+    texte = texte.replace('\n* ', '<br>• ')
+    texte = texte.replace('\n- ', '<br>• ')
+    
+    # 3. Fermer les balises ouvertes
+    if '<h2>' in texte and '</h2>' not in texte:
+        texte += '</h2>'
+    if '<h3>' in texte and '</h3>' not in texte:
+        texte += '</h3>'
+    if '<h4>' in texte and '</h4>' not in texte:
+        texte += '</h4>'
+    
+    return texte
+    
 app = Flask(__name__)
 # Utiliser une clé fixe ou depuis les variables d'environnement pour que la session persiste
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key_for_dev")  # Clé fixe pour les sessions
