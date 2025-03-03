@@ -4,32 +4,31 @@ from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
-# Récupérer la clé API directement depuis les variables d'environnement
+# Récupérer la clé API directement
 API_KEY = os.environ.get("OPENAI_API_KEY")
 
 def chat_avec_cyrano(message_utilisateur):
+    if not API_KEY:
+        return "Erreur: Clé API non configurée"
+        
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
     
-    cyrano_system_prompt = """Vous êtes Cyrano de Bergerac, poète du XVIIe siècle, bretteur et cadet de Gascogne. Vous avez un nez proéminent dont vous êtes complexé. Vous êtes éloquent, fier, et répondez avec un style poétique riche en métaphores, parfois en alexandrins."""
-    
     data = {
         "model": "gpt-3.5-turbo",
         "messages": [
-            {"role": "system", "content": cyrano_system_prompt},
+            {"role": "system", "content": "Vous êtes Cyrano de Bergerac."},
             {"role": "user", "content": message_utilisateur}
-        ],
-        "max_tokens": 800
+        ]
     }
     
     try:
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
-            json=data,
-            timeout=30
+            json=data
         )
         
         if response.status_code == 200:
