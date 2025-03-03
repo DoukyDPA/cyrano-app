@@ -109,7 +109,7 @@ Progression: Ouvrir systématiquement vers des pistes d'approfondissement
             {"role": "system", "content": cyrano_system_prompt},
             {"role": "user", "content": message_utilisateur}
         ],
-        "max_tokens": 800
+        "max_tokens": 2000
     }
  
 
