@@ -36,39 +36,143 @@ API_KEY = os.environ.get("OPENAI_API_KEY")
 
 def extraire_texte_pdf(file_path):
     """Extraire le texte d'un fichier PDF"""
+    app.logger.info(f"Extraction du texte du fichier PDF: {file_path}")
     text = ""
     try:
         with open(file_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            for page_num in range(len(pdf_reader.pages)):
-                page_text = pdf_reader.pages[page_num].extract_text()
-                if page_text:  # Vérifier que le texte a été extrait
-                    text += page_text + "\n"
+            try:
+                pdf_reader = PyPDF2.PdfReader(file)
+                app.logger.info(f"PDF ouvert, nombre de pages: {len(pdf_reader.pages)}")
+                
+                for page_num in range(len(pdf_reader.pages)):
+                    try:
+                        page = pdf_reader.pages[page_num]
+                        page_text = page.extract_text()
+                        
+                        if page_text:  # Vérifier que le texte a été extrait
+                            text += page_text + "\n"
+                            app.logger.info(f"Page {page_num+1}: {len(page_text)} caractères extraits")
+                        else:
+                            text += f"[Page {page_num+1} sans texte extractible]\n"
+                            app.logger.warning(f"Page {page_num+1}: Pas de texte extractible")
+                    except Exception as page_e:
+                        app.logger.error(f"Erreur lors de l'extraction de la page {page_num+1}: {str(page_e)}")
+                        text += f"[Erreur page {page_num+1}: {str(page_e)}]\n"
+                
+                # Vérifier si du texte a été extrait
+                if not text.strip():
+                    app.logger.warning("Aucun texte extrait du PDF, possible document scanné ou protégé")
+                    text = "Aucun texte n'a pu être extrait de ce PDF. Il s'agit peut-être d'un document scanné ou protégé."
                 else:
-                    text += "[Page sans texte extractible]\n"
+                    app.logger.info(f"Extraction réussie, {len(text)} caractères au total")
+            except Exception as pdf_e:
+                app.logger.error(f"Erreur lors de l'ouverture du PDF: {str(pdf_e)}")
+                text = f"Erreur lors de l'ouverture du PDF: {str(pdf_e)}"
+                
+                # Tenter une approche alternative
+                app.logger.info("Tentative d'extraction alternative du PDF")
+                try:
+                    # Réouvrir le fichier et lire le contenu brut
+                    file.seek(0)
+                    raw_content = file.read()
+                    
+                    # Rechercher du texte dans le contenu brut
+                    try:
+                        # Extraction basique de chaînes de caractères du PDF
+                        import re
+                        text_matches = re.findall(b'(\([\w\d\s,.;:!?-]+\))', raw_content)
+                        if text_matches:
+                            extracted = []
+                            for match in text_matches:
+                                try:
+                                    # Essayer de décoder la chaîne PDF
+                                    decoded = match.decode('utf-8', errors='replace').strip('()')
+                                    if len(decoded) > 3:  # Ignorer les très courtes chaînes
+                                        extracted.append(decoded)
+                                except:
+                                    pass
+                            
+                            if extracted:
+                                text = "Extraction alternative - contenu partiel:\n\n" + "\n".join(extracted)
+                                app.logger.info(f"Extraction alternative réussie, {len(extracted)} fragments")
+                            else:
+                                text = "Aucun texte extractible trouvé dans ce PDF."
+                        else:
+                            text = "Aucun texte extractible trouvé dans ce PDF."
+                    except Exception as ex_e:
+                        app.logger.error(f"Échec de l'extraction alternative: {str(ex_e)}")
+                        text = f"Erreur lors de l'extraction du PDF: {str(pdf_e)}"
+                except Exception as alt_e:
+                    app.logger.error(f"Échec complet de l'extraction PDF: {str(alt_e)}")
+                    text = f"Erreur lors de l'extraction du PDF: {str(pdf_e)}"
     except Exception as e:
-        text = f"Erreur lors de l'extraction du PDF: {str(e)}"
+        app.logger.error(f"Erreur lors de l'accès au fichier PDF: {str(e)}")
+        text = f"Erreur lors de l'accès au fichier PDF: {str(e)}"
+    
     return text
 
 def extraire_texte_fichier(file_path):
     """Extraire le texte d'un fichier selon son extension"""
+    app.logger.info(f"Extraction du texte du fichier: {file_path}")
+    
+    # Vérifier que le fichier existe
+    if not os.path.exists(file_path):
+        app.logger.error(f"Le fichier n'existe pas: {file_path}")
+        return f"Erreur: Le fichier {file_path} n'existe pas."
+    
+    # Vérifier que le fichier a une taille
+    file_size = os.path.getsize(file_path)
+    app.logger.info(f"Taille du fichier: {file_size} octets")
+    if file_size == 0:
+        app.logger.error(f"Le fichier est vide: {file_path}")
+        return "Erreur: Le fichier téléchargé est vide."
+    
     extension = os.path.splitext(file_path)[1].lower()
+    app.logger.info(f"Extension du fichier: {extension}")
     
     if extension == '.pdf':
         return extraire_texte_pdf(file_path)
     elif extension == '.txt':
         try:
             with open(file_path, 'r', encoding='utf-8') as file:
-                return file.read()
+                content = file.read()
+                app.logger.info(f"Fichier texte lu avec utf-8, {len(content)} caractères")
+                return content
         except UnicodeDecodeError:
             # Essayer une autre encodage si utf-8 échoue
             try:
                 with open(file_path, 'r', encoding='latin-1') as file:
-                    return file.read()
+                    content = file.read()
+                    app.logger.info(f"Fichier texte lu avec latin-1, {len(content)} caractères")
+                    return content
             except Exception as e:
-                return f"Erreur lors de la lecture du fichier texte: {str(e)}"
+                app.logger.error(f"Erreur lors de la lecture du fichier texte avec latin-1: {str(e)}")
+                # Dernière tentative: lecture en binaire
+                try:
+                    with open(file_path, 'rb') as file:
+                        binary_content = file.read()
+                        # Tentative de décodage avec différents encodages
+                        for encoding in ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']:
+                            try:
+                                content = binary_content.decode(encoding, errors='replace')
+                                app.logger.info(f"Fichier texte décodé avec {encoding}, {len(content)} caractères")
+                                return content
+                            except:
+                                continue
+                        
+                        # Si aucun encodage ne fonctionne, retourner du texte remplacé
+                        content = binary_content.decode('utf-8', errors='replace')
+                        app.logger.warning(f"Décodage de secours utilisé, {len(content)} caractères")
+                        return content
+                except Exception as inner_e:
+                    app.logger.error(f"Échec complet de lecture du fichier: {str(inner_e)}")
+                    return f"Erreur lors de la lecture du fichier texte: {str(e)}"
+        except Exception as e:
+            app.logger.error(f"Erreur lors de la lecture du fichier texte: {str(e)}")
+            return f"Erreur lors de la lecture du fichier texte: {str(e)}"
     else:
-        return "Ce type de fichier n'est pas pris en charge pour l'analyse."
+        app.logger.warning(f"Type de fichier non pris en charge: {extension}")
+        return f"Ce type de fichier ({extension}) n'est pas pris en charge pour l'analyse. Veuillez utiliser un fichier .txt ou .pdf."
 
 def sauvegarder_analyse_dans_session(analyse, document_type):
     """Sauvegarder l'analyse dans la session"""
@@ -84,10 +188,17 @@ def verifier_dossier_initial():
 
 def analyser_document_avec_ia(texte, document_type):
     """Analyser un document avec l'API OpenAI"""
+    app.logger.info(f"Début d'analyse de document type: {document_type}")
+    
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
+    
+    # Vérification de la clé API
+    if not API_KEY:
+        app.logger.error("Clé API OpenAI non configurée")
+        return "Erreur: La clé API OpenAI n'est pas configurée. Veuillez contacter l'administrateur."
     
     # Adapter le prompt système selon le type de document
     if document_type == "dossier_initial":
@@ -146,10 +257,21 @@ Progressivité: Guider par étapes vers l'amélioration
     
     # Vérifier si le dossier initial est requis
     if document_type != "dossier_initial" and not verifier_dossier_initial():
+        app.logger.warning("Tentative d'analyse sans dossier initial")
         return "Veuillez d'abord télécharger le dossier initial d'analyse réalisé par le CBE Sud 94 avant de continuer. Ce document est essentiel pour vous accompagner efficacement."
     
+    # Vérifier que le texte n'est pas vide
+    if not texte or len(texte.strip()) < 10:
+        app.logger.error(f"Texte trop court ou vide: '{texte}'")
+        return "Le document semble vide ou trop court pour être analysé. Veuillez vérifier le fichier téléchargé."
+    
+    # Log le texte pour débogage (limité pour ne pas surcharger les logs)
+    text_preview = texte[:200] + "..." if len(texte) > 200 else texte
+    app.logger.info(f"Aperçu du texte à analyser: {text_preview}")
+    
     # Limiter la taille du texte pour éviter de dépasser les tokens
-    texte_limite = texte[:4000] + "..." if len(texte) > 4000 else texte
+    # Ajusté à 8000 caractères pour donner plus de contexte à l'IA
+    texte_limite = texte[:8000] + "..." if len(texte) > 8000 else texte
     
     message_utilisateur = f"Voici un document à analyser ({document_type}):\n\n{texte_limite}\n\nMerci de l'analyser selon les directives."
     
@@ -159,11 +281,15 @@ Progressivité: Guider par étapes vers l'amélioration
     
     # Ajouter le contexte du dossier initial si disponible et si ce n'est pas l'analyse du dossier initial
     if document_type != "dossier_initial" and 'analyses' in session and 'dossier_initial' in session['analyses']:
-        messages.insert(1, {"role": "assistant", "content": "Contexte du dossier initial: " + session['analyses']['dossier_initial']})
+        # Limiter la taille du contexte
+        contexte_dossier = session['analyses']['dossier_initial'][:1500] + "..." if len(session['analyses']['dossier_initial']) > 1500 else session['analyses']['dossier_initial']
+        messages.insert(1, {"role": "assistant", "content": "Contexte du dossier initial: " + contexte_dossier})
     
     # Ajouter le CV si disponible et si on analyse une offre d'emploi
     if document_type == "offre_emploi" and 'analyses' in session and 'cv' in session['analyses']:
-        messages.insert(1, {"role": "assistant", "content": "Contexte du CV du candidat: " + session['analyses']['cv']})
+        # Limiter la taille du contexte
+        contexte_cv = session['analyses']['cv'][:1500] + "..." if len(session['analyses']['cv']) > 1500 else session['analyses']['cv']
+        messages.insert(1, {"role": "assistant", "content": "Contexte du CV du candidat: " + contexte_cv})
     
     data = {
         "model": "gpt-4o",
@@ -171,23 +297,35 @@ Progressivité: Guider par étapes vers l'amélioration
         "max_tokens": 2000
     }
     
+    app.logger.info(f"Nombre de messages: {len(messages)}")
+    app.logger.info(f"Taille approximative du contenu envoyé à l'API: {sum(len(m['content']) for m in messages)} caractères")
+    
     try:
+        app.logger.info("Envoi de la requête à l'API OpenAI")
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=30
+            timeout=60  # Augmenter le timeout à 60 secondes
         )
+        
+        app.logger.info(f"Réponse reçue avec code HTTP: {response.status_code}")
         
         if response.status_code == 200:
             analyse = response.json()["choices"][0]["message"]["content"]
+            app.logger.info(f"Analyse réussie, taille de la réponse: {len(analyse)} caractères")
+            
             # Sauvegarder l'analyse dans la session
             sauvegarder_analyse_dans_session(analyse, document_type)
             return analyse
         else:
-            return f"Erreur API: {response.status_code} - {response.text}"
+            error_msg = f"Erreur API: {response.status_code} - {response.text}"
+            app.logger.error(error_msg)
+            return error_msg
     except Exception as e:
-        return f"Exception: {str(e)}"
+        error_msg = f"Exception lors de l'appel API: {str(e)}"
+        app.logger.error(error_msg)
+        return error_msg
 
 @app.route('/')
 def index():
