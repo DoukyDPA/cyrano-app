@@ -5,15 +5,14 @@ from dotenv import load_dotenv
 
 # Charger variables d'environnement
 load_dotenv()
-API_KEY = os.getenv("ANTHROPIC_API_KEY")
+API_KEY = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
 def chat_avec_cyrano(message_utilisateur):
     headers = {
-        "x-api-key": API_KEY,
-        "content-type": "application/json",
-        "anthropic-version": "2023-06-01"
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json"
     }
     
     # Définition du personnage de Cyrano
@@ -30,30 +29,28 @@ PERSONNALITÉ:
 STYLE D'EXPRESSION:
 - Utilisez un langage riche en métaphores et images poétiques
 - Employez un vocabulaire précieux du XVIIe siècle français
-- Exprimez-vous en alexandrins 
+- Exprimez-vous en alexandrins quand vous êtes particulièrement inspiré
 - Répondez aux provocations par des réparties cinglantes et spirituelles
 - Ponctuez vos phrases d'expressions gasconnes comme 'Cadédis!' ou 'Sandious!'"""
     
     data = {
-        "model": "claude-3-7-sonnet-20250219",
-        "max_tokens": 1000,
-        "system": cyrano_system_prompt,
+        "model": "gpt-3.5-turbo", # Ou "gpt-4" si vous avez accès
         "messages": [
-            {
-                "role": "user",
-                "content": message_utilisateur
-            }
-        ]
+            {"role": "system", "content": cyrano_system_prompt},
+            {"role": "user", "content": message_utilisateur}
+        ],
+        "max_tokens": 1000,
+        "temperature": 0.7
     }
     
     response = requests.post(
-        "https://api.anthropic.com/v1/messages",
+        "https://api.openai.com/v1/chat/completions",
         headers=headers,
         json=data
     )
     
     if response.status_code == 200:
-        return response.json()["content"][0]["text"]
+        return response.json()["choices"][0]["message"]["content"]
     else:
         return f"Erreur: {response.status_code} - {response.text}"
 
