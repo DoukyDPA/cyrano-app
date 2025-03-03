@@ -253,13 +253,32 @@
             
             // Afficher un message de chargement
             statusElement.innerHTML = '<span class="status-indicator status-red"></span> Téléchargement en cours...';
+            console.log(`Début du téléchargement pour ${documentType}`);
             
             fetch('/upload', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log(`Réponse reçue pour ${documentType}:`, response);
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log(`Données reçues pour ${documentType}:`, data);
+                
+                // Vérifier si la réponse contient bien les données attendues
+                if (!data || !data.response) {
+                    throw new Error("Réponse invalide du serveur");
+                }
+                
+                // Vérifier si l'opération a réussi
+                if (data.success === false) {
+                    throw new Error(data.response || "Échec de l'opération");
+                }
+                
                 // Mettre à jour le statut
                 updateDocumentStatus(documentType, true);
                 
@@ -269,8 +288,15 @@
                 // Message utilisateur
                 const userMessageDiv = document.createElement('div');
                 userMessageDiv.className = 'user-message';
-                userMessageDiv.textContent = `J'ai téléchargé ${documentType === 'dossier' ? 'le dossier initial' : 
-                                              documentType === 'cv' ? 'mon CV' : 'une offre d'emploi'}.`;
+                let msgText = "";
+                if (documentType === 'dossier') {
+                    msgText = "J'ai téléchargé le dossier initial.";
+                } else if (documentType === 'cv') {
+                    msgText = "J'ai téléchargé mon CV.";
+                } else {
+                    msgText = "J'ai téléchargé une offre d'emploi.";
+                }
+                userMessageDiv.textContent = msgText;
                 chatContainer.appendChild(userMessageDiv);
                 
                 // Réponse de l'IA
@@ -286,14 +312,20 @@
                 if (documentType === 'dossier') {
                     document.getElementById('message-input').disabled = false;
                     document.getElementById('send-button').disabled = false;
+                    
+                    // Afficher un message explicite indiquant que le chat est maintenant actif
+                    const activationMsg = document.createElement('div');
+                    activationMsg.className = 'iamonjob-message';
+                    activationMsg.textContent = "Le dossier initial a bien été téléchargé. Vous pouvez maintenant interagir avec votre conseiller IAMONJOB.";
+                    chatContainer.appendChild(activationMsg);
                 }
                 
                 // Mettre à jour tous les statuts
                 checkSessionStatus();
             })
             .catch(error => {
-                statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error}`;
-                console.error('Erreur:', error);
+                console.error(`Erreur lors du téléchargement pour ${documentType}:`, error);
+                statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error.message || error}`;
             });
         }
         
