@@ -815,59 +815,136 @@
                 alert(`Une erreur inattendue s'est produite: ${error.message}`);
             }
         }
-        
-        // Fonction pour envoyer un message
-        function sendMessage() {
-            const messageInput = document.getElementById('message-input');
-            const message = messageInput.value.trim();
-            
-            if (message) {
-                // Afficher le message de l'utilisateur
-                const chatContainer = document.getElementById('chat-container');
-                const userMessageDiv = document.createElement('div');
-                userMessageDiv.className = 'user-message';
-                userMessageDiv.textContent = message;
-                chatContainer.appendChild(userMessageDiv);
-                
-                // Vider l'input
-                messageInput.value = '';
-                
-                // Faire défiler vers le bas
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-                
-                // Envoyer la requête au serveur
-                fetch('/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Afficher la réponse de l'IA
-                    const iaMessageDiv = document.createElement('div');
-                    iaMessageDiv.className = 'iamonjob-message';
-                    iaMessageDiv.innerHTML = formatResponse(data.response);
-                    
-                    chatContainer.appendChild(iaMessageDiv);
-                    
-                    // Faire défiler vers le bas à nouveau
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                })
-                .catch(error => {
-                    console.error('Erreur:', error);
-                    
-                    // Afficher un message d'erreur
-                    const errorDiv = document.createElement('div');
-                    errorDiv.className = 'iamonjob-message';
-                    errorDiv.style.backgroundColor = '#ffdddd';
-                    errorDiv.textContent = 'Erreur de communication avec le serveur. Veuillez réessayer.';
-                    chatContainer.appendChild(errorDiv);
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                });
+      // Fonction pour ajouter un indicateur de chargement
+function showLoading(container) {
+    // Créer l'élément de chargement
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'iamonjob-message loading-message';
+    loadingDiv.id = 'loading-indicator';
+    
+    // Style pour l'animation de chargement
+    loadingDiv.innerHTML = `
+        <style>
+            .loading-dots {
+                display: inline-block;
             }
-        }
+            .loading-dots::after {
+                display: inline-block;
+                content: '';
+                animation: loading 1.5s infinite;
+                width: 5px;
+            }
+            @keyframes loading {
+                0% { content: ''; }
+                25% { content: '.'; }
+                50% { content: '..'; }
+                75% { content: '...'; }
+                100% { content: ''; }
+            }
+        </style>
+        <p>Traitement de votre demande<span class="loading-dots"></span></p>
+        <p class="info-text">Le temps de réponse peut varier en fonction de la complexité de votre demande et de la taille des documents.</p>
+    `;
+    
+    container.appendChild(loadingDiv);
+    container.scrollTop = container.scrollHeight;
+    return loadingDiv;
+}
+
+// Fonction pour supprimer l'indicateur de chargement
+function hideLoading() {
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.remove();
+    }
+}
+
+// Version améliorée de la fonction sendMessage
+function sendMessage() {
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
+    
+    if (message) {
+        // Afficher le message de l'utilisateur
+        const chatContainer = document.getElementById('chat-container');
+        const userMessageDiv = document.createElement('div');
+        userMessageDiv.className = 'user-message';
+        userMessageDiv.textContent = message;
+        chatContainer.appendChild(userMessageDiv);
+        
+        // Vider l'input
+        messageInput.value = '';
+        
+        // Désactiver l'input et le bouton pendant le chargement
+        const sendButton = document.getElementById('send-button');
+        if (messageInput) messageInput.disabled = true;
+        if (sendButton) sendButton.disabled = true;
+        
+        // Afficher l'indicateur de chargement
+        showLoading(chatContainer);
+        
+        // Faire défiler vers le bas
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+        // Envoyer la requête au serveur
+        fetch('/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            // Supprimer l'indicateur de chargement
+            hideLoading();
+            
+            // Réactiver l'input et le bouton
+            if (messageInput) messageInput.disabled = false;
+            if (sendButton) sendButton.disabled = false;
+            
+            // Mettre le focus sur l'input
+            if (messageInput) messageInput.focus();
+            
+            // Afficher la réponse de l'IA
+            const iaMessageDiv = document.createElement('div');
+            iaMessageDiv.className = 'iamonjob-message';
+            iaMessageDiv.innerHTML = formatResponse(data.response);
+            
+            chatContainer.appendChild(iaMessageDiv);
+            
+            // Faire défiler vers le bas à nouveau
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            
+            // Supprimer l'indicateur de chargement
+            hideLoading();
+            
+            // Réactiver l'input et le bouton
+            if (messageInput) messageInput.disabled = false;
+            if (sendButton) sendButton.disabled = false;
+            
+            // Afficher un message d'erreur
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'iamonjob-message';
+            errorDiv.style.backgroundColor = '#ffdddd';
+            errorDiv.innerHTML = `
+                <h3>Erreur de communication</h3>
+                <p>${error.message || 'Erreur de communication avec le serveur.'}</p>
+                <p>Veuillez réessayer dans quelques instants ou reformuler votre demande.</p>
+            `;
+            chatContainer.appendChild(errorDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    }
+}  
     </script>
 </body>
 </html>
