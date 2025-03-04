@@ -508,50 +508,82 @@
                 }
             });
         }
-        
+        // Ajouter cette nouvelle fonction pour formater correctement les réponses
+function formatResponse(text) {
+    if (!text) return '';
+    
+    // Convertir les sauts de ligne en balises <br>
+    let formatted = text.replace(/\n/g, '<br>');
+    
+    // Convertir les titres
+    formatted = formatted.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+    formatted = formatted.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+    formatted = formatted.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+    
+    // Convertir les listes à puces
+    formatted = formatted.replace(/^- (.*?)$/gm, '<li>$1</li>');
+    formatted = formatted.replace(/^• (.*?)$/gm, '<li>$1</li>');
+    
+    // Entourer les groupes de listes avec <ul>
+    formatted = formatted.replace(/(<li>.*?<\/li>)(?!\s*<li>)/gs, '<ul>$1</ul>');
+    
+    // Convertir le texte en gras
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    return formatted;
+}
         // Fonction pour envoyer un message
-        function sendMessage() {
-            const messageInput = document.getElementById('message-input');
-            const message = messageInput.value.trim();
+       function sendMessage() {
+    const messageInput = document.getElementById('message-input');
+    const message = messageInput.value.trim();
+    
+    if (message) {
+        // Afficher le message de l'utilisateur
+        const chatContainer = document.getElementById('chat-container');
+        const userMessageDiv = document.createElement('div');
+        userMessageDiv.className = 'user-message';
+        userMessageDiv.textContent = message;
+        chatContainer.appendChild(userMessageDiv);
+        
+        // Vider l'input
+        messageInput.value = '';
+        
+        // Faire défiler vers le bas
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+        
+        // Envoyer la requête au serveur
+        fetch('/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Afficher la réponse de l'IA
+           const iaMessageDiv = document.createElement('div');
+iaMessageDiv.className = 'iamonjob-message';
+iaMessageDiv.innerHTML = formatResponse(data.response);
             
-            if (message) {
-                // Afficher le message de l'utilisateur
-                const chatContainer = document.getElementById('chat-container');
-                const userMessageDiv = document.createElement('div');
-                userMessageDiv.className = 'user-message';
-                userMessageDiv.textContent = message;
-                chatContainer.appendChild(userMessageDiv);
-                
-                // Vider l'input
-                messageInput.value = '';
-                
-                // Faire défiler vers le bas
-                chatContainer.scrollTop = chatContainer.scrollHeight;
-                
-                // Envoyer la requête au serveur
-                fetch('/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ message: message })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Afficher la réponse de l'IA
-                    const iaMessageDiv = document.createElement('div');
-                    iaMessageDiv.className = 'iamonjob-message';
-                    iaMessageDiv.textContent = data.response;
-                    chatContainer.appendChild(iaMessageDiv);
-                    
-                    // Faire défiler vers le bas à nouveau
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                })
-                .catch(error => {
-                    console.error('Erreur:', error);
-                });
-            }
-        }
+            chatContainer.appendChild(iaMessageDiv);
+            
+            // Faire défiler vers le bas à nouveau
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        })
+        .catch(error => {
+            console.error('Erreur:', error);
+            
+            // Afficher un message d'erreur
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'iamonjob-message';
+            errorDiv.style.backgroundColor = '#ffdddd';
+            errorDiv.textContent = 'Erreur de communication avec le serveur. Veuillez réessayer.';
+            chatContainer.appendChild(errorDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    }
+}
         
         // Permettre l'envoi en appuyant sur Entrée
         document.getElementById('message-input').addEventListener('keypress', function(e) {
