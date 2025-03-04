@@ -1,16 +1,4 @@
-@app.route('/debug', methods=['GET'])
-def debug_info():
-    """Endpoint de débogage pour vérifier l'état de l'application"""
-    debug_data = {
-        'session_active': bool(session),
-        'session_id': session.get('_id', 'non défini'),
-        'analyses_present': 'analyses' in session,
-        'api_key_configured': bool(API_KEY),
-        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
-        'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
-        'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
-    }
-    return jsonify(debug_data)import os
+import os
 import requests
 import logging
 from flask import Flask, render_template, request, jsonify, session
@@ -19,9 +7,20 @@ import PyPDF2
 import json
 import sys
 
+# Créer le dossier uploads s'il n'existe pas
+upload_folder = 'uploads'
+if not os.path.exists(upload_folder):
+    os.makedirs(upload_folder)
+
+# Initialiser l'application Flask
 app = Flask(__name__)
+
 # Utiliser une clé fixe ou depuis les variables d'environnement pour que la session persiste
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key_for_dev")  # Clé fixe pour les sessions
+
+# Configuration
+app.config['UPLOAD_FOLDER'] = upload_folder
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
 
 # Configuration des logs
 if os.environ.get('FLASK_ENV') == 'production':
@@ -36,12 +35,6 @@ else:
         level=logging.DEBUG,
         format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
     )
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
-
-# Créer le dossier uploads s'il n'existe pas
-if not os.path.exists(app.config['UPLOAD_FOLDER']):
-    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 # Récupérer la clé API directement depuis les variables d'environnement
 API_KEY = os.environ.get("OPENAI_API_KEY")
@@ -220,11 +213,12 @@ def analyser_document_avec_ia(texte, document_type):
     if document_type == "dossier_initial":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser ce dossier initial qui contient l'analyse du CV et des recommandations.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
+- Utilise # pour les titres principaux
+- Utilise ## pour les sous-titres
+- Utilise des listes à puces avec -
+- Mets les points importants en **gras**
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     elif document_type == "cv":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
@@ -301,8 +295,6 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
                 analyse = response.json()["choices"][0]["message"]["content"]
                 app.logger.info(f"Analyse reçue, longueur: {len(analyse)} caractères")
                 
-
-                
                 # Sauvegarder l'analyse dans la session
                 sauvegarder_analyse_dans_session(analyse, document_type)
                 return analyse
@@ -317,21 +309,6 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         app.logger.error(f"Exception lors de l'appel API: {str(e)}")
         return f"Erreur lors de la communication avec l'API: {str(e)}"
 
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/chat', methods=['POST'])
-def chat():
-    user_message = request.json.get('message', '')
-    
-    # Vérifier si le dossier initial est présent
-    if not verifier_dossier_initial():
-        return jsonify({'response': "Veuillez d'abord télécharger le dossier initial d'analyse réalisé par le CBE Sud 94 avant de continuer. Ce document est essentiel pour vous accompagner efficacement."})
-    
-    ia_response = chat_avec_ia(user_message)
-    return jsonify({'response': ia_response})
-
 def chat_avec_ia(message):
     """Fonction pour discuter avec le coach IA"""
     headers = {
@@ -340,11 +317,12 @@ def chat_avec_ia(message):
     }
     
     system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
+- Utilise # pour les titres principaux
+- Utilise ## pour les sous-titres
+- Utilise des listes à puces avec -
+- Mets les points importants en **gras**
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     
     messages = [{"role": "system", "content": system_prompt},
@@ -376,13 +354,42 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
         
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
-            # Nettoyer le formatage markdown
-            content = content.replace('**', '').replace('##', '').replace('*', '• ')
+            # Ne pas nettoyer le formatage markdown pour permettre un meilleur affichage
             return content
         else:
             return f"Erreur API: {response.status_code} - {response.text}"
     except Exception as e:
         return f"Exception: {str(e)}"
+
+# Définition des routes
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/debug', methods=['GET'])
+def debug_info():
+    """Endpoint de débogage pour vérifier l'état de l'application"""
+    debug_data = {
+        'session_active': bool(session),
+        'session_id': session.get('_id', 'non défini'),
+        'analyses_present': 'analyses' in session,
+        'api_key_configured': bool(API_KEY),
+        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
+        'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
+        'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
+    }
+    return jsonify(debug_data)
+
+@app.route('/chat', methods=['POST'])
+def chat():
+    user_message = request.json.get('message', '')
+    
+    # Vérifier si le dossier initial est présent
+    if not verifier_dossier_initial():
+        return jsonify({'response': "Veuillez d'abord télécharger le dossier initial d'analyse réalisé par le CBE Sud 94 avant de continuer. Ce document est essentiel pour vous accompagner efficacement."})
+    
+    ia_response = chat_avec_ia(user_message)
+    return jsonify({'response': ia_response})
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
