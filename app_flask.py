@@ -343,100 +343,127 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         return f"Erreur lors de la communication avec l'API: {str(e)}"
 
 def chat_avec_ia(message):
+    """
+    Cette fonction unifie la conversation.
+    Si c'est le premier message de la session, on inclut automatiquement
+    le texte de l'offre (s'il existe) dans la conversation,
+    au même titre que le dossier initial ou le CV.
+    """
+
+    # Vérifie et initialise l'historique
+    if 'chat_history' not in session:
+        session['chat_history'] = []
+        session.modified = True
+
+    # Detecte si on est au tout premier message
+    is_first_message = (len(session['chat_history']) == 0)
+
+    # Prompt système (informations de base pour l'IA)
+    system_prompt = (
+        "Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi. "
+        "Analyse tous les documents disponibles (dossier, CV, offre) et réponds de façon concrète. "
+        "Ne fais pas de phrases d'introduction ou conclusion creuses, "
+        "et n'utilise jamais le mot 'crucial'. "
+        "Utilise la syntaxe markdown pour mettre en forme."
+    )
+
+    # On commence la liste de messages destinés à OpenAI
+    messages = [
+        {"role": "system", "content": system_prompt}
+    ]
+
+    # -----------------------------------------------------------------------
+    # ÉTAPE A) SI C'EST LE TOUT PREMIER MESSAGE : ON INSÈRE DIRECTEMENT L'OFFRE
+    # -----------------------------------------------------------------------
+    if is_first_message:
+        # 1) On informe l'IA (sous forme d'un message "user") des documents disponibles :
+        doc_list = []
+        if 'analyses' in session:
+            if 'dossier_initial' in session['analyses']:
+                doc_list.append("Dossier initial")
+            if 'cv' in session['analyses']:
+                doc_list.append("CV")
+            if 'offre_emploi' in session['analyses']:
+                doc_list.append("Offre d'emploi")
+
+        if doc_list:
+            summary_message = "Documents déjà disponibles :\n\n" + "\n".join(f"- {doc}" for doc in doc_list)
+        else:
+            summary_message = "Aucun document en session..."
+
+        # On ajoute ce message à la conversation
+        messages.append({"role": "user", "content": summary_message})
+
+        # 2) SI une offre d’emploi est disponible, on donne tout de suite son contenu.
+        if 'analyses' in session and 'offre_emploi' in session['analyses']:
+            # on tronque un peu pour éviter d'envoyer 20 pages
+            offer_text = session['analyses']['offre_emploi'][:2000]
+            if len(session['analyses']['offre_emploi']) > 2000:
+                offer_text += "\n[...Document tronqué pour respecter la limite de tokens...]"
+
+            # On ajoute ce texte comme un message "assistant"
+            messages.append({
+                "role": "assistant",
+                "content": (
+                    f"Voici le texte de l'offre d'emploi :\n\n{offer_text}\n\n"
+                    "J'en tiendrai compte pour mes réponses."
+                )
+            })
+
+        # 3) Pour terminer, on fait un message "assistant" d'ouverture
+        messages.append({
+            "role": "assistant",
+            "content": "Quels sont vos besoins ou vos questions ?"
+        })
+
+    # -----------------------------------------------------------------------
+    # ÉTAPE B) ON RECONSTRUIT LE CONTEXTE : ON AJOUTE L'HISTORIQUE PRÉCÉDENT
+    # -----------------------------------------------------------------------
+    # Pour éviter un trop long prompt, on ne récupère que les 8 derniers échanges
+    for old_msg in session['chat_history'][-8:]:
+        messages.append(old_msg)
+
+    # -----------------------------------------------------------------------
+    # ÉTAPE C) ON AJOUTE LE NOUVEAU MESSAGE UTILISATEUR (SI NON-VIDE)
+    # -----------------------------------------------------------------------
+    message = message.strip()
+    if message:
+        messages.append({"role": "user", "content": message})
+
+    # -----------------------------------------------------------------------
+    # ÉTAPE D) APPEL À L'API OpenAI
+    # -----------------------------------------------------------------------
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
-    
-    if 'chat_history' not in session:
-        session['chat_history'] = []
-        session.modified = True
-    
-    is_first_message = (len(session['chat_history']) == 0)
-    
-    system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
-Tu dois fournir des conseils personnalisés basés sur le dossier initial, le CV et l'offre d'emploi (si disponible).
-Ne fais pas de phrases d'introduction creuses. Ne jamais employer le mot 'crucial'.
-Format: markdown.
-"""
-    
-    messages = [{"role": "system", "content": system_prompt}]
-    
-    # ---------------------
-    # On complète le tout premier message par un résumé des documents (dossier, CV, offre)
-    # ---------------------
-    if is_first_message:
-        context_prompt = "Voici les documents déjà disponibles :\n"
-        
-        if 'analyses' in session:
-            if 'dossier_initial' in session['analyses']:
-                context_prompt += "- Dossier initial d'analyse\n"
-            if 'cv' in session['analyses']:
-                context_prompt += "- CV du candidat\n"
-            if 'offre_emploi' in session['analyses']:
-                context_prompt += "- Offre d'emploi\n"
-        
-        messages.append({"role": "user", "content": context_prompt})
-        
-        # Optionnel : on peut d’emblée injecter le contenu de l’offre
-        if 'analyses' in session and 'offre_emploi' in session['analyses']:
-            offre_content = session['analyses']['offre_emploi'][:1000]
-            messages.append({"role": "assistant", 
-                             "content": f"Résumé de l'offre d'emploi:\n{offre_content}...\n\n" 
-                                        "Je vais vous aider en me basant sur ces documents. "
-                                        "Que souhaitez-vous savoir ou améliorer?"})
-        else:
-            messages.append({"role": "assistant", 
-                             "content": "Je vais vous aider en me basant sur ces documents. "
-                                        "Que souhaitez-vous savoir ou améliorer?"})
-    
-    # ---------------------
-    # On ajoute l’historique des 8 derniers messages
-    # ---------------------
-    for old_msg in session['chat_history'][-8:]:
-        messages.append(old_msg)
-    
-    # ---------------------
-    # Ajout du nouveau message user
-    # ---------------------
-    if message.strip():
-        messages.append({"role": "user", "content": message})
-    
-    # ---------------------
-    # Envoi à l'API
-    # ---------------------
     data = {
-        "model": "gpt-4o",
+        "model": "gpt-4o",  # ou 'gpt-3.5-turbo', etc.
         "messages": messages,
-        "max_tokens": 1500,
+        "max_tokens": 1200,
         "temperature": 0.7
     }
-    
+
     try:
+        import requests
         response = requests.post("https://api.openai.com/v1/chat/completions",
-                                 headers=headers, json=data, timeout=90)
-        
+                                 headers=headers, json=data, timeout=60)
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
-            
-            # On stocke la question ET la réponse
-            if message.strip():
+            # On stocke la question et la réponse dans l'historique
+            if message:
                 session['chat_history'].append({"role": "user", "content": message})
             session['chat_history'].append({"role": "assistant", "content": content})
             session.modified = True
-            
             return content
         else:
-            error_msg = f"Erreur API: {response.status_code} - {response.text[:200]}"
-            app.logger.error(error_msg)
-            return error_msg
-    
+            return f"Erreur API OpenAI: {response.status_code}\n\n{response.text[:500]}"
+
     except requests.exceptions.Timeout:
-        app.logger.error("Timeout lors de l'appel à l'API OpenAI")
-        return "Le serveur met plus de temps que prévu à répondre. Veuillez réessayer plus tard."
+        return "Timeout: le serveur met trop de temps à répondre."
     except Exception as e:
-        app.logger.error(f"Exception dans chat_avec_ia: {str(e)}")
-        return f"Une erreur s'est produite: {str(e)}"
+        return f"Erreur durant l'appel OpenAI: {str(e)}"
+
 
 # Définition des routes
 @app.route('/')
