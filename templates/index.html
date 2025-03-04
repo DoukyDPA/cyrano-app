@@ -3,239 +3,35 @@
 <head>
     <title>IAMONJOB - Votre conseiller en insertion professionnelle</title>
     <style>
-        body {
-            font-family: 'Garamond', serif;
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5dc;
-        }
-        .chat-container {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 15px;
-            margin-bottom: 20px;
-            background-color: white;
-        }
-        .user-message {
-            background-color: #e6f7ff;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 10px;
-            max-width: 80%;
-            margin-left: auto;
-        }
-        .iamonjob-message {
-            background-color: #f9e4b7;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 10px;
-            max-width: 80%;
-        }
-        /* Styles pour le formatage HTML à l'intérieur des messages */
-        .iamonjob-message h1 {
-            color: #8b0000;
-            font-size: 20px;
-            margin-top: 5px;
-            margin-bottom: 10px;
-            text-align: left;
-        }
-        .iamonjob-message h2 {
-            color: #8b4513;
-            font-size: 18px;
-            margin-top: 15px;
-            margin-bottom: 8px;
-        }
-        .iamonjob-message h3 {
-            color: #333;
-            font-size: 16px;
-            margin-top: 12px;
-            margin-bottom: 6px;
-        }
-        .iamonjob-message p {
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-        .iamonjob-message ul {
-            margin-left: 20px;
-            margin-bottom: 10px;
-        }
-        .iamonjob-message li {
-            margin-bottom: 5px;
-        }
-        .iamonjob-message strong {
-            color: #8b0000;
-        }
-        .iamonjob-message br {
-            display: block;
-            content: "";
-            margin-top: 10px;
-        }
-        .input-container {
-            display: flex;
-            margin-bottom: 20px;
-        }
-        #message-input {
-            flex-grow: 1;
-            padding: 10px;
-            font-family: inherit;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #8b0000;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-        }
-        button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        h1 {
-            color: #8b0000;
-            text-align: center;
-            margin-bottom: 5px;
-        }
-        h3 {
-            color: #333;
-            text-align: center;
-            margin-top: 0;
-            font-style: italic;
-            margin-bottom: 20px;
-        }
-        .logo {
-            width: 300px;
-            height: auto;
-            display: block;
-            margin: 0 auto 20px;
-        }
-        .upload-container {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #f0e9d2;
-            border-radius: 10px;
-        }
-        .upload-section {
-            margin-bottom: 15px;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background-color: #fff;
-        }
-        .upload-section h4 {
-            margin-top: 0;
-            color: #8b0000;
-        }
-        .upload-form {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .upload-status {
-            margin-top: 10px;
-            font-style: italic;
-        }
-        .status-indicator {
-            display: inline-block;
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            margin-right: 5px;
-        }
-        .status-red {
-            background-color: #ff6666;
-        }
-        .status-green {
-            background-color: #66cc66;
-        }
-        .required-tag {
-            color: red;
-            font-weight: bold;
-        }
-        .info-text {
-            font-size: 0.9em;
-            color: #666;
-            margin-top: 5px;
-        }
+        /* ... tes styles CSS ... */
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
-        // Configuration de marked pour activer les sauts de ligne
         marked.setOptions({
             breaks: true
         });
     </script>
 </head>
 <body>
+    <!-- Contenu HTML : entête, formulaires, etc. -->
     <h1>IAMONJOB</h1>
-    <h3>Votre conseiller en insertion professionnelle</h3>
-    <img src="https://assets.zyrosite.com/AQEDVGvzR7cMgZz4/tout-ce-que-votre-cv-dit-de-vous-mnlqL6WlENtpL36M.png" alt="IAMONJOB" class="logo">
-    
-    <!-- Section pour le téléchargement de documents -->
+    <!-- ... reste de ton code HTML ... -->
+
+    <!-- Zone de téléchargement des documents, chat, etc. -->
     <div class="upload-container">
-        <h3>Documents nécessaires pour votre accompagnement</h3>
-        <!-- Dossier Initial (OBLIGATOIRE) -->
-        <div class="upload-section" id="section-dossier">
-            <h4>Dossier initial d'analyse <span class="required-tag">*OBLIGATOIRE*</span></h4>
-            <p class="info-text">Le dossier initial réalisé par le CBE Sud 94 est indispensable pour débuter l'accompagnement.</p>
-            <form class="upload-form" id="dossier-form" enctype="multipart/form-data">
-                <input type="hidden" name="document_type" value="dossier_initial">
-                <input type="file" id="dossier-file" name="document" accept=".txt,.pdf">
-                <button type="submit" id="dossier-submit">Télécharger le dossier initial</button>
-            </form>
-            <div class="upload-status" id="dossier-status">
-                <span class="status-indicator status-red" id="dossier-indicator"></span>
-                Non téléchargé
-            </div>
-        </div>
-        
-        <!-- CV (OPTIONNEL pour commencer) -->
-        <div class="upload-section" id="section-cv">
-            <h4>CV actualisé</h4>
-            <p class="info-text">Téléchargez votre CV le plus récent pour obtenir une analyse actualisée.</p>
-            <form class="upload-form" id="cv-form" enctype="multipart/form-data">
-                <input type="hidden" name="document_type" value="cv">
-                <input type="file" id="cv-file" name="document" accept=".txt,.pdf">
-                <button type="submit" id="cv-submit">Télécharger votre CV</button>
-            </form>
-            <div class="upload-status" id="cv-status">
-                <span class="status-indicator status-red" id="cv-indicator"></span>
-                Non téléchargé
-            </div>
-        </div>
-        
-        <!-- Offre d'emploi (OPTIONNEL) -->
-        <div class="upload-section" id="section-offre">
-            <h4>Offre d'emploi</h4>
-            <p class="info-text">Téléchargez une offre d'emploi qui vous intéresse pour recevoir des conseils personnalisés.</p>
-            <form class="upload-form" id="offre-form" enctype="multipart/form-data">
-                <input type="hidden" name="document_type" value="offre_emploi">
-                <input type="file" id="offre-file" name="document" accept=".txt,.pdf">
-                <button type="submit" id="offre-submit">Télécharger une offre d'emploi</button>
-            </form>
-            <div class="upload-status" id="offre-status">
-                <span class="status-indicator status-red" id="offre-indicator"></span>
-                Non téléchargé
-            </div>
-        </div>
+      <!-- tes formulaires -->
     </div>
-    
-    <!-- Container de chat -->
     <div class="chat-container" id="chat-container">
-        <div class="iamonjob-message">Bonjour et bienvenue sur IAMONJOB. Veuillez commencer par télécharger le dossier initial d'analyse réalisé par le CBE Sud 94. Ce document est essentiel pour démarrer votre accompagnement personnalisé.</div>
+      <!-- messages -->
     </div>
-    
-    <!-- Zone de saisie de message -->
     <div class="input-container">
-        <input type="text" id="message-input" placeholder="Écrivez votre message ici..." disabled>
-        <button onclick="sendMessage()" id="send-button" disabled>Envoyer</button>
+      <input type="text" id="message-input" placeholder="Écrivez votre message ici..." disabled>
+      <button id="send-button" disabled>Envoyer</button>
     </div>
 
+    <!-- Inclusion de ton code JavaScript -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("DOM entièrement chargé et analysé");
             // Vérification des éléments critiques
             const criticalElements = [
                 'chat-container', 'message-input', 'send-button',
@@ -251,14 +47,12 @@
                 }
             });
             if (missingElements.length > 0) {
-                console.error("Éléments manquants:", missingElements);
                 alert("Erreur d'initialisation de la page. Certains éléments sont manquants: " + missingElements.join(', '));
             } else {
-                console.log("Tous les éléments critiques sont présents");
                 checkSessionStatus();
             }
 
-            // Attachement des événements aux formulaires
+            // Attacher les événements aux formulaires d'upload
             document.getElementById('dossier-form').addEventListener('submit', function(e) {
                 e.preventDefault();
                 uploadDocument(this, 'dossier');
@@ -271,7 +65,7 @@
                 e.preventDefault();
                 uploadDocument(this, 'offre');
             });
-            // Envoi via la touche Entrée pour le champ message
+            // Envoi de message via la touche Entrée
             document.getElementById('message-input').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     sendMessage();
@@ -279,12 +73,10 @@
             });
         });
 
-        // Fonction pour vérifier l'état des documents téléchargés
         function checkSessionStatus() {
             fetch('/session_status')
                 .then(response => response.json())
                 .then(data => {
-                    console.log("Session status data:", data);
                     updateDocumentStatus('dossier', data.dossier_initial);
                     updateDocumentStatus('cv', data.cv);
                     updateDocumentStatus('offre', data.offre_emploi);
@@ -293,12 +85,9 @@
                         document.getElementById('send-button').disabled = false;
                     }
                 })
-                .catch(error => {
-                    console.error('Erreur lors de la vérification de l\'état de la session:', error);
-                });
+                .catch(error => console.error('Erreur lors de la vérification de l\'état de la session:', error));
         }
 
-        // Mettre à jour l'indicateur visuel pour un document
         function updateDocumentStatus(documentType, isUploaded) {
             const indicator = document.getElementById(`${documentType}-indicator`);
             const statusText = document.getElementById(`${documentType}-status`);
@@ -312,7 +101,6 @@
             }
         }
 
-        // Fonction générique pour télécharger un document
         function uploadDocument(form, documentType) {
             const formData = new FormData(form);
             const statusElement = document.getElementById(`${documentType}-status`);
@@ -331,14 +119,12 @@
                 if (data.success === false) throw new Error(data.response || "Échec de l'opération");
                 updateDocumentStatus(documentType, true);
                 const chatContainer = document.getElementById('chat-container');
-                // Message utilisateur
                 const userMessageDiv = document.createElement('div');
                 userMessageDiv.className = 'user-message';
                 userMessageDiv.textContent = documentType === 'dossier' ? "J'ai téléchargé le dossier initial." :
                                              documentType === 'cv' ? "J'ai téléchargé mon CV." :
                                              "J'ai téléchargé une offre d'emploi.";
                 chatContainer.appendChild(userMessageDiv);
-                // Réponse de l'IA
                 const iaMessageDiv = document.createElement('div');
                 iaMessageDiv.className = 'iamonjob-message';
                 iaMessageDiv.innerHTML = data.response;
@@ -355,21 +141,20 @@
                 checkSessionStatus();
             })
             .catch(error => {
-                statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error.message || error}`;
-                alert(`Erreur lors du téléchargement: ${error.message || error}`);
+                statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error.message}`;
+                alert(`Erreur lors du téléchargement: ${error.message}`);
                 const chatContainer = document.getElementById('chat-container');
                 if (chatContainer) {
                     const errorMsg = document.createElement('div');
                     errorMsg.className = 'iamonjob-message';
                     errorMsg.style.backgroundColor = '#ffdddd';
-                    errorMsg.textContent = `Une erreur est survenue lors du téléchargement du document: ${error.message || error}`;
+                    errorMsg.textContent = `Une erreur est survenue lors du téléchargement du document: ${error.message}`;
                     chatContainer.appendChild(errorMsg);
                     chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
             });
         }
 
-        // Fonction pour envoyer un message
         function sendMessage() {
             const messageInput = document.getElementById('message-input');
             const message = messageInput.value.trim();
