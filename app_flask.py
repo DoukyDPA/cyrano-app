@@ -502,9 +502,9 @@
                     } else {
                         console.error("Input message non trouvé");
                     }
-                } catch (
+                } catch ( {
         
-        // Fonction pour vérifier l'état des documents téléchargés
+       // Fonction pour vérifier l'état des documents téléchargés
         function checkSessionStatus() {
             console.log("Vérification du statut de la session...");
             
