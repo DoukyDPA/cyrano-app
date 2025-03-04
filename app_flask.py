@@ -310,7 +310,7 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         return f"Erreur lors de la communication avec l'API: {str(e)}"
 
 def chat_avec_ia(message):
-    """Fonction pour discuter avec le coach IA en intégrant tous les documents et gardant l'historique"""
+    """Fonction pour discuter avec le coach IA en intégrant tous les documents à chaque requête"""
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
@@ -322,66 +322,66 @@ def chat_avec_ia(message):
         session.modified = True
     
     system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
-Tu as à ta disposition : 
-- Un dossier initial d'analyse du profil du candidat
-- Son CV actuel 
-- Une offre d'emploi qui l'intéresse (optionnel)
+Ta mission est d'aider le candidat en comparant son dossier initial, son CV et l'offre d'emploi (si disponible) 
+et en fournissant des conseils personnalisés. Concentre-toi sur la préparation à l'entretien, l'amélioration 
+de la lettre de motivation, et les stratégies pour se démarquer.
 
-Ta mission est d'aider le candidat en comparant ces documents et en fournissant des conseils personnalisés.
-Concentre-toi sur la préparation à l'entretien, l'amélioration de la lettre de motivation, et les stratégies pour se démarquer.
-
-FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
-- Utilise # pour les titres principaux
-- Utilise ## pour les sous-titres
-- Utilise des listes à puces avec -
-- Mets les points importants en **gras**
-- Sépare bien les sections avec des sauts de ligne
+FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible.
 """
     
-    # Construire les messages avec l'historique de la conversation
+    # Construire les messages en incluant toujours les documents
     messages = [{"role": "system", "content": system_prompt}]
     
-    # Ajouter les documents seulement si c'est le premier message
-    if not session['chat_history']:
-        app.logger.info("Premier message, ajout des documents au contexte")
-        # 1. D'abord le dossier initial (contexte principal)
-        if 'analyses' in session and 'dossier_initial' in session['analyses']:
-            dossier = session['analyses']['dossier_initial']
-            messages.append({
-                "role": "user", 
-                "content": f"Voici le dossier initial d'analyse du candidat:\n\n{dossier}"
-            })
-            messages.append({
-                "role": "assistant", 
-                "content": "J'ai bien reçu le dossier initial d'analyse."
-            })
-        
-        # 2. Ensuite le CV (s'il existe)
-        if 'analyses' in session and 'cv' in session['analyses']:
-            cv = session['analyses']['cv']
-            messages.append({
-                "role": "user", 
-                "content": f"Voici le CV actuel du candidat:\n\n{cv}"
-            })
-            messages.append({
-                "role": "assistant", 
-                "content": "J'ai bien reçu le CV du candidat."
-            })
-        
-        # 3. Enfin l'offre d'emploi (si elle existe)
-        if 'analyses' in session and 'offre_emploi' in session['analyses']:
-            offre = session['analyses']['offre_emploi']
-            messages.append({
-                "role": "user", 
-                "content": f"Voici l'offre d'emploi qui intéresse le candidat:\n\n{offre}"
-            })
-            messages.append({
-                "role": "assistant", 
-                "content": "J'ai bien reçu l'offre d'emploi."
-            })
+    # Toujours inclure les documents dans chaque requête
+    app.logger.info("Ajout des documents au contexte")
     
-    # Ajouter l'historique des messages précédents (limité aux 10 derniers échanges)
-    for msg in session['chat_history'][-10:]:
+    # 1. D'abord le dossier initial (contexte principal)
+    if 'analyses' in session and 'dossier_initial' in session['analyses']:
+        dossier = session['analyses']['dossier_initial']
+        app.logger.info(f"Dossier initial trouvé: {len(dossier)} caractères")
+        messages.append({
+            "role": "user", 
+            "content": f"Voici le dossier initial d'analyse du candidat:\n\n{dossier}"
+        })
+        messages.append({
+            "role": "assistant", 
+            "content": "J'ai bien reçu et analysé le dossier initial."
+        })
+    else:
+        app.logger.warning("Dossier initial non trouvé dans la session")
+    
+    # 2. Ensuite le CV (s'il existe)
+    if 'analyses' in session and 'cv' in session['analyses']:
+        cv = session['analyses']['cv']
+        app.logger.info(f"CV trouvé: {len(cv)} caractères")
+        messages.append({
+            "role": "user", 
+            "content": f"Voici le CV actuel du candidat:\n\n{cv}"
+        })
+        messages.append({
+            "role": "assistant", 
+            "content": "J'ai bien reçu et analysé le CV du candidat."
+        })
+    else:
+        app.logger.warning("CV non trouvé dans la session")
+    
+    # 3. Enfin l'offre d'emploi (si elle existe)
+    if 'analyses' in session and 'offre_emploi' in session['analyses']:
+        offre = session['analyses']['offre_emploi']
+        app.logger.info(f"Offre d'emploi trouvée: {len(offre)} caractères")
+        messages.append({
+            "role": "user", 
+            "content": f"Voici l'offre d'emploi qui intéresse le candidat:\n\n{offre}"
+        })
+        messages.append({
+            "role": "assistant", 
+            "content": "J'ai bien reçu et analysé l'offre d'emploi."
+        })
+    else:
+        app.logger.warning("Offre d'emploi non trouvée dans la session")
+    
+    # Ajouter l'historique des messages précédents (limité aux 6 derniers échanges)
+    for msg in session['chat_history'][-6:]:
         messages.append(msg)
     
     # Ajouter le message actuel de l'utilisateur
@@ -401,7 +401,7 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=90  # Augmenter le timeout à 90 secondes
+            timeout=120  # Timeout encore plus élevé
         )
         
         if response.status_code == 200:
