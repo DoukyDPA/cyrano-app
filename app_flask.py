@@ -310,37 +310,90 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         return f"Erreur lors de la communication avec l'API: {str(e)}"
 
 def chat_avec_ia(message):
-    """Fonction pour discuter avec le coach IA"""
+    """Fonction pour discuter avec le coach IA en intégrant tous les documents et gardant l'historique"""
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
     
+    # Initialiser l'historique des messages s'il n'existe pas
+    if 'chat_history' not in session:
+        session['chat_history'] = []
+        session.modified = True
+    
     system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+Tu as à ta disposition : 
+- Un dossier initial d'analyse du profil du candidat
+- Son CV actuel 
+- Une offre d'emploi qui l'intéresse (optionnel)
+
+Ta mission est d'aider le candidat en comparant ces documents et en fournissant des conseils personnalisés.
+Concentre-toi sur la préparation à l'entretien, l'amélioration de la lettre de motivation, et les stratégies pour se démarquer.
+
+FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
+- Utilise # pour les titres principaux
+- Utilise ## pour les sous-titres
+- Utilise des listes à puces avec -
+- Mets les points importants en **gras**
 - Sépare bien les sections avec des sauts de ligne
 """
     
-    # Version simplifiée pour tester
-    messages = [{"role": "system", "content": system_prompt},
-                {"role": "user", "content": message}]
+    # Construire les messages avec l'historique de la conversation
+    messages = [{"role": "system", "content": system_prompt}]
     
-    # Ajouter un résumé très court des documents
-    if 'analyses' in session:
-        context = "Contexte (résumé): "
-        for doc_type in session['analyses'].keys():
-            context += f"{doc_type} présent, "
+    # Ajouter les documents seulement si c'est le premier message
+    if not session['chat_history']:
+        app.logger.info("Premier message, ajout des documents au contexte")
+        # 1. D'abord le dossier initial (contexte principal)
+        if 'analyses' in session and 'dossier_initial' in session['analyses']:
+            dossier = session['analyses']['dossier_initial']
+            messages.append({
+                "role": "user", 
+                "content": f"Voici le dossier initial d'analyse du candidat:\n\n{dossier}"
+            })
+            messages.append({
+                "role": "assistant", 
+                "content": "J'ai bien reçu le dossier initial d'analyse."
+            })
         
-        messages.insert(1, {"role": "assistant", "content": context})
+        # 2. Ensuite le CV (s'il existe)
+        if 'analyses' in session and 'cv' in session['analyses']:
+            cv = session['analyses']['cv']
+            messages.append({
+                "role": "user", 
+                "content": f"Voici le CV actuel du candidat:\n\n{cv}"
+            })
+            messages.append({
+                "role": "assistant", 
+                "content": "J'ai bien reçu le CV du candidat."
+            })
+        
+        # 3. Enfin l'offre d'emploi (si elle existe)
+        if 'analyses' in session and 'offre_emploi' in session['analyses']:
+            offre = session['analyses']['offre_emploi']
+            messages.append({
+                "role": "user", 
+                "content": f"Voici l'offre d'emploi qui intéresse le candidat:\n\n{offre}"
+            })
+            messages.append({
+                "role": "assistant", 
+                "content": "J'ai bien reçu l'offre d'emploi."
+            })
     
-    app.logger.info(f"Test de chat: envoi de {len(messages)} messages à l'API")
+    # Ajouter l'historique des messages précédents (limité aux 10 derniers échanges)
+    for msg in session['chat_history'][-10:]:
+        messages.append(msg)
+    
+    # Ajouter le message actuel de l'utilisateur
+    messages.append({"role": "user", "content": message})
+    
+    app.logger.info(f"Envoi de {len(messages)} messages à l'API pour le chat")
     
     data = {
         "model": "gpt-4o",
         "messages": messages,
-        "max_tokens": 2000
+        "max_tokens": 2000,
+        "temperature": 0.7
     }
     
     try:
@@ -348,21 +401,28 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=30
+            timeout=90  # Augmenter le timeout à 90 secondes
         )
-        
-        app.logger.info(f"Réponse API: statut={response.status_code}")
         
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
+            
+            # Sauvegarder ce message dans l'historique
+            session['chat_history'].append({"role": "user", "content": message})
+            session['chat_history'].append({"role": "assistant", "content": content})
+            session.modified = True
+            
             return content
         else:
-            error_message = f"Erreur API: {response.status_code} - {response.text[:200]}"
-            app.logger.error(error_message)
-            return error_message
+            error_msg = f"Erreur API: {response.status_code} - {response.text[:200]}"
+            app.logger.error(error_msg)
+            return error_msg
+    except requests.exceptions.Timeout:
+        app.logger.error("Timeout lors de l'appel à l'API OpenAI")
+        return "Le serveur met plus de temps que prévu à répondre. Votre question est complexe ou le serveur est occupé. Veuillez réessayer avec une question plus courte ou patienter un moment."
     except Exception as e:
         app.logger.error(f"Exception dans chat_avec_ia: {str(e)}")
-        return f"Exception: {str(e)}"
+        return f"Désolé, une erreur s'est produite lors du traitement de votre demande: {str(e)}"
 # Définition des routes
 @app.route('/')
 def index():
