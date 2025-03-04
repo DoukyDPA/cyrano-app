@@ -168,6 +168,8 @@
             margin-top: 5px;
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
 </head>
 <body>
     <h1>IAMONJOB</h1>
@@ -510,27 +512,7 @@
         }
         // Ajouter cette nouvelle fonction pour formater correctement les réponses
 function formatResponse(text) {
-    if (!text) return '';
-    
-    // Convertir les sauts de ligne en balises <br>
-    let formatted = text.replace(/\n/g, '<br>');
-    
-    // Convertir les titres
-    formatted = formatted.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
-    formatted = formatted.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
-    formatted = formatted.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
-    
-    // Convertir les listes à puces
-    formatted = formatted.replace(/^- (.*?)$/gm, '<li>$1</li>');
-    formatted = formatted.replace(/^• (.*?)$/gm, '<li>$1</li>');
-    
-    // Entourer les groupes de listes avec <ul>
-    formatted = formatted.replace(/(<li>.*?<\/li>)(?!\s*<li>)/gs, '<ul>$1</ul>');
-    
-    // Convertir le texte en gras
-    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    
-    return formatted;
+    return marked.parse(text); // Utilise la bibliothèque marked.js
 }
         // Fonction pour envoyer un message
        function sendMessage() {
