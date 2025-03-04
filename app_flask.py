@@ -343,7 +343,6 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         return f"Erreur lors de la communication avec l'API: {str(e)}"
 
 def chat_avec_ia(message):
-    """Fonction pour discuter avec le coach IA en utilisant une approche simplifiée"""
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
@@ -353,61 +352,59 @@ def chat_avec_ia(message):
         session['chat_history'] = []
         session.modified = True
     
-    is_first_message = len(session['chat_history']) == 0
+    is_first_message = (len(session['chat_history']) == 0)
     
     system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
 Tu dois fournir des conseils personnalisés basés sur le dossier initial, le CV et l'offre d'emploi (si disponible).
-Concentre-toi sur des conseils concrets, des suggestions d'amélioration, et des stratégies pour se démarquer.
-
-FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible.
+Ne fais pas de phrases d'introduction creuses. Ne jamais employer le mot 'crucial'.
+Format: markdown.
 """
     
     messages = [{"role": "system", "content": system_prompt}]
     
+    # ---------------------
+    # On complète le tout premier message par un résumé des documents (dossier, CV, offre)
+    # ---------------------
     if is_first_message:
-        context_prompt = "Informations disponibles pour l'accompagnement :\n"
+        context_prompt = "Voici les documents déjà disponibles :\n"
         
         if 'analyses' in session:
             if 'dossier_initial' in session['analyses']:
                 context_prompt += "- Dossier initial d'analyse\n"
-            
             if 'cv' in session['analyses']:
                 context_prompt += "- CV du candidat\n"
-            
             if 'offre_emploi' in session['analyses']:
-                context_prompt += "- Offre d'emploi d'intérêt\n"
+                context_prompt += "- Offre d'emploi\n"
         
         messages.append({"role": "user", "content": context_prompt})
-        messages.append({"role": "assistant", "content": "Je vais vous aider en me basant sur ces documents. Que souhaitez-vous savoir ou améliorer?"})
+        
+        # Optionnel : on peut d’emblée injecter le contenu de l’offre
+        if 'analyses' in session and 'offre_emploi' in session['analyses']:
+            offre_content = session['analyses']['offre_emploi'][:1000]
+            messages.append({"role": "assistant", 
+                             "content": f"Résumé de l'offre d'emploi:\n{offre_content}...\n\n" 
+                                        "Je vais vous aider en me basant sur ces documents. "
+                                        "Que souhaitez-vous savoir ou améliorer?"})
+        else:
+            messages.append({"role": "assistant", 
+                             "content": "Je vais vous aider en me basant sur ces documents. "
+                                        "Que souhaitez-vous savoir ou améliorer?"})
     
-    for msg in session['chat_history'][-8:]:
-        messages.append(msg)
+    # ---------------------
+    # On ajoute l’historique des 8 derniers messages
+    # ---------------------
+    for old_msg in session['chat_history'][-8:]:
+        messages.append(old_msg)
     
-    messages.append({"role": "user", "content": message})
+    # ---------------------
+    # Ajout du nouveau message user
+    # ---------------------
+    if message.strip():
+        messages.append({"role": "user", "content": message})
     
-    reminder = ""
-    keywords = {
-        "cv": ["cv", "curriculum", "expérience", "compétence", "formation", "parcours"],
-        "lettre": ["lettre", "motivation", "candidature", "postuler"],
-        "entretien": ["entretien", "embauche", "recruteur", "recruteuse", "rdv", "rendez-vous"],
-        "offre": ["offre", "emploi", "annonce", "poste"]
-    }
-    
-    message_lower = message.lower()
-    for category, words in keywords.items():
-        if any(word in message_lower for word in words):
-            if category == "cv" and 'analyses' in session and 'cv' in session['analyses']:
-                reminder += f"\nRappel du CV du candidat:\n{session['analyses']['cv'][:1000]}...\n"
-            elif category == "offre" and 'analyses' in session and 'offre_emploi' in session['analyses']:
-                reminder += f"\nRappel de l'offre d'emploi:\n{session['analyses']['offre_emploi'][:1000]}...\n"
-            elif 'analyses' in session and 'dossier_initial' in session['analyses']:
-                reminder += f"\nRappel des informations pertinentes du dossier initial:\n{session['analyses']['dossier_initial'][:1000]}...\n"
-    
-    if reminder:
-        messages.append({"role": "user", "content": f"Rappel d'informations pour t'aider à répondre: {reminder}"})
-    
-    app.logger.info(f"Envoi de {len(messages)} messages à l'API pour le chat")
-    
+    # ---------------------
+    # Envoi à l'API
+    # ---------------------
     data = {
         "model": "gpt-4o",
         "messages": messages,
@@ -416,17 +413,15 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible.
     }
     
     try:
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers=headers,
-            json=data,
-            timeout=90
-        )
+        response = requests.post("https://api.openai.com/v1/chat/completions",
+                                 headers=headers, json=data, timeout=90)
         
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
             
-            session['chat_history'].append({"role": "user", "content": message})
+            # On stocke la question ET la réponse
+            if message.strip():
+                session['chat_history'].append({"role": "user", "content": message})
             session['chat_history'].append({"role": "assistant", "content": content})
             session.modified = True
             
@@ -435,12 +430,13 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible.
             error_msg = f"Erreur API: {response.status_code} - {response.text[:200]}"
             app.logger.error(error_msg)
             return error_msg
+    
     except requests.exceptions.Timeout:
         app.logger.error("Timeout lors de l'appel à l'API OpenAI")
         return "Le serveur met plus de temps que prévu à répondre. Veuillez réessayer plus tard."
     except Exception as e:
         app.logger.error(f"Exception dans chat_avec_ia: {str(e)}")
-        return f"Désolé, une erreur s'est produite lors du traitement de votre demande: {str(e)}"
+        return f"Une erreur s'est produite: {str(e)}"
 
 # Définition des routes
 @app.route('/')
