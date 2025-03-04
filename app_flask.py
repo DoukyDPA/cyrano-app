@@ -1,4 +1,68 @@
-import os
+def formater_reponse_pour_html(texte):
+    """Convertir la réponse de l'API en HTML formaté pour l'affichage"""
+    app.logger.info("Formatage de la réponse pour HTML")
+    
+    # Fonction pour remplacer les caractères spéciaux HTML
+    def escape_html(text):
+        return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    
+    if not texte:
+        return ""
+    
+    # Formater les titres
+    # 1. Remplacer les titres markdown par des balises HTML
+    for i in range(3, 0, -1):  # Commencer par h3, puis h2, puis h1
+        pattern = '#' * i + ' (.+?)($|\n)'
+        texte = re.sub(pattern, f'<h{i}>\\1</h{i}>\n', texte)
+    
+    # 2. Traiter le texte en gras
+    texte = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', texte)
+    
+    # 3. Traiter les listes à puces
+    lines = texte.split('\n')
+    in_list = False
+    formatted_lines = []
+    
+    for line in lines:
+        # Si c'est une ligne de liste
+        if line.strip().startswith('* ') or line.strip().startswith('- '):
+            if not in_list:
+                formatted_lines.append('<ul>')
+                in_list = True
+            # Récupérer le texte après le marqueur de liste
+            list_item = line.strip()[2:].strip()
+            formatted_lines.append(f'<li>{escape_html(list_item)}</li>')
+        else:
+            if in_list:
+                formatted_lines.append('</ul>')
+                in_list = False
+            # Sauts de ligne avec paragraphes
+            if line.strip() == '':
+                formatted_lines.append('<br>')
+            else:
+                # Si c'est déjà une balise HTML, la laisser telle quelle
+                if line.strip().startswith('<'):
+                    formatted_lines.append(line)
+                else:
+                    formatted_lines.append(f'<p>{escape_html(line)}</p>')
+    
+    # Fermer la liste si besoin
+    if in_list:
+        formatted_lines.append('</ul>')
+    
+    return '\n'.join(formatted_lines)@app.route('/debug', methods=['GET'])
+def debug_info():
+    """Endpoint de débogage pour vérifier l'état de l'application"""
+    debug_data = {
+        'session_active': bool(session),
+        'session_id': session.get('_id', 'non défini'),
+        'analyses_present': 'analyses' in session,
+        'api_key_configured': bool(API_KEY),
+        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
+        'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
+        'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
+    }
+    return jsonify(debug_data)import os
 import requests
 import logging
 import re
@@ -25,7 +89,6 @@ else:
         level=logging.DEBUG,
         format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
     )
-
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limite à 16MB
 
@@ -35,33 +98,6 @@ if not os.path.exists(app.config['UPLOAD_FOLDER']):
 
 # Récupérer la clé API directement depuis les variables d'environnement
 API_KEY = os.environ.get("OPENAI_API_KEY")
-
-def formatter_simple(texte):
-    """Version ultra-simplifiée du formattage HTML"""
-    if not texte:
-        return ""
-    
-    # 1. Appliquer les transformations de base
-    texte = texte.replace('\n\n', '<br><br>')  # Doubles sauts de ligne
-    texte = texte.replace('# ', '<h2>')        # Titres
-    texte = texte.replace('\n## ', '</h2><h3>') # Sous-titres
-    texte = texte.replace('\n### ', '</h3><h4>') # Sous-sous-titres
-    texte = texte.replace('**', '<strong>')     # Début de gras
-    texte = texte.replace('**', '</strong>')    # Fin de gras (imparfait mais simple)
-    
-    # 2. Remplacer les listes à puces
-    texte = texte.replace('\n* ', '<br>• ')
-    texte = texte.replace('\n- ', '<br>• ')
-    
-    # 3. Fermer les balises ouvertes
-    if '<h2>' in texte and '</h2>' not in texte:
-        texte += '</h2>'
-    if '<h3>' in texte and '</h3>' not in texte:
-        texte += '</h3>'
-    if '<h4>' in texte and '</h4>' not in texte:
-        texte += '</h4>'
-    
-    return texte
 
 def extraire_texte_pdf(file_path):
     """Extraire le texte d'un fichier PDF"""
@@ -323,14 +359,14 @@ FORMAT: Ta réponse doit être bien structurée et lisible.
                 analyse = response.json()["choices"][0]["message"]["content"]
                 app.logger.info(f"Analyse reçue, longueur: {len(analyse)} caractères")
                 
-                # Appliquer le formattage simple
-                analyse_formatee = formatter_simple(analyse)
+                # Formater la réponse en HTML
+                analyse_html = formater_reponse_pour_html(analyse)
                 
                 # Sauvegarder l'analyse brute dans la session pour référence
                 sauvegarder_analyse_dans_session(analyse, document_type)
                 
-                # Retourner la version formatée
-                return analyse_formatee
+                # Retourner la version HTML formatée
+                return analyse_html
             except Exception as parse_error:
                 app.logger.error(f"Erreur lors du parsing de la réponse: {str(parse_error)}")
                 return f"Erreur lors du traitement de la réponse API: {str(parse_error)}"
@@ -403,9 +439,8 @@ FORMAT: Ta réponse doit être bien structurée et lisible.
         
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
-            # Appliquer le formattage simple
-            content_formate = formatter_simple(content)
-            return content_formate
+            # Convertir en HTML formaté
+            return formater_reponse_pour_html(content)
         else:
             return f"Erreur API: {response.status_code} - {response.text}"
     except Exception as e:
@@ -494,6 +529,18 @@ def upload_file():
         app.logger.error(f"Exception non gérée: {str(e)}")
         return jsonify({'response': f'Erreur inattendue: {str(e)}', 'success': False})
 
+@app.route('/session_status', methods=['GET'])
+def session_status():
+    """Retourner le statut des documents téléchargés"""
+    status = {
+        'dossier_initial': 'analyses' in session and 'dossier_initial' in session['analyses'],
+        'cv': 'analyses' in session and 'cv' in session['analyses'],
+        'offre_emploi': 'analyses' in session and 'offre_emploi' in session['analyses'],
+        'session_id': session.get('_id', 'non défini'),  # Identifiant de session pour débogage
+        'session_contents': {k: bool(v) for k, v in session.items()}  # Résumé du contenu de la session
+    }
+    return jsonify(status)
+
 @app.route('/test_api', methods=['GET'])
 def test_api():
     """Endpoint pour tester la connexion à l'API OpenAI"""
@@ -543,32 +590,6 @@ def test_api():
             "api_key_present": bool(API_KEY),
             "api_key_preview": f"{API_KEY[:4]}...{API_KEY[-4:]}" if API_KEY and len(API_KEY) > 8 else "N/A"
         })
-
-@app.route('/debug', methods=['GET'])
-def debug_info():
-    """Endpoint de débogage pour vérifier l'état de l'application"""
-    debug_data = {
-        'session_active': bool(session),
-        'session_id': session.get('_id', 'non défini'),
-        'analyses_present': 'analyses' in session,
-        'api_key_configured': bool(API_KEY),
-        'upload_folder_exists': os.path.exists(app.config['UPLOAD_FOLDER']),
-        'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
-        'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
-    }
-    return jsonify(debug_data)
-
-@app.route('/session_status', methods=['GET'])
-def session_status():
-    """Retourner le statut des documents téléchargés"""
-    status = {
-        'dossier_initial': 'analyses' in session and 'dossier_initial' in session['analyses'],
-        'cv': 'analyses' in session and 'cv' in session['analyses'],
-        'offre_emploi': 'analyses' in session and 'offre_emploi' in session['analyses'],
-        'session_id': session.get('_id', 'non défini'),  # Identifiant de session pour débogage
-        'session_contents': {k: bool(v) for k, v in session.items()}  # Résumé du contenu de la session
-    }
-    return jsonify(status)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8080))
