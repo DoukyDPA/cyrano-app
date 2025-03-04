@@ -310,38 +310,77 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         return f"Erreur lors de la communication avec l'API: {str(e)}"
 
 def chat_avec_ia(message):
-    """Fonction pour discuter avec le coach IA"""
+    """Fonction pour discuter avec le coach IA en intégrant tous les documents"""
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
     }
     
-    system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi en fonction des documents téléchargés et dasn la même logique.
-FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
-- Utilise # pour les titres principaux
-- Utilise ## pour les sous-titres
-- Utilise des listes à puces avec -
-- Mets les points importants en **gras**
+    system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
+Tu as à ta disposition : 
+- Un dossier initial d'analyse du profil du candidat
+- Son CV actuel 
+- Une offre d'emploi qui l'intéresse (optionnel)
+
+Ta mission est d'aider le candidat en comparant ces documents et en fournissant des conseils personnalisés.
+
+FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
+- Utilise des titres et sous-titres clairs
+- Utilise des listes à puces pour les points importants
 - Sépare bien les sections avec des sauts de ligne
 """
     
-    messages = [{"role": "system", "content": system_prompt},
-                {"role": "user", "content": message}]
+    messages = [{"role": "system", "content": system_prompt}]
     
-    # Ajouter le contexte des analyses précédentes
+    # Ajouter le contexte des documents complets
     if 'analyses' in session:
-        context = "Contexte des analyses précédentes:\n"
-        for doc_type, analyse in session['analyses'].items():
-            # Limiter la taille pour éviter de dépasser les tokens
-            resume = analyse[:500] + "..." if len(analyse) > 500 else analyse
-            context += f"\n--- {doc_type} ---\n{resume}\n"
+        # 1. D'abord le dossier initial (contexte principal)
+        if 'dossier_initial' in session['analyses']:
+            dossier = session['analyses']['dossier_initial']
+            # Envoyer le dossier initial complet
+            messages.append({
+                "role": "user", 
+                "content": f"Voici le dossier initial d'analyse du candidat:\n\n{dossier}"
+            })
+            messages.append({
+                "role": "assistant", 
+                "content": "J'ai bien reçu le dossier initial d'analyse. Je vais l'utiliser comme base pour comprendre le profil du candidat."
+            })
         
-        messages.insert(1, {"role": "assistant", "content": context})
+        # 2. Ensuite le CV (s'il existe)
+        if 'cv' in session['analyses']:
+            cv = session['analyses']['cv']
+            messages.append({
+                "role": "user", 
+                "content": f"Voici le CV actuel du candidat:\n\n{cv}"
+            })
+            messages.append({
+                "role": "assistant", 
+                "content": "J'ai bien reçu le CV du candidat. Je vais l'analyser en complément du dossier initial."
+            })
+        
+        # 3. Enfin l'offre d'emploi (si elle existe)
+        if 'offre_emploi' in session['analyses']:
+            offre = session['analyses']['offre_emploi']
+            messages.append({
+                "role": "user", 
+                "content": f"Voici l'offre d'emploi qui intéresse le candidat:\n\n{offre}"
+            })
+            messages.append({
+                "role": "assistant", 
+                "content": "J'ai bien reçu l'offre d'emploi. Je vais analyser la compatibilité entre le profil du candidat et les exigences de cette offre."
+            })
+    
+    # Ajouter la question actuelle de l'utilisateur
+    messages.append({"role": "user", "content": message})
+    
+    app.logger.info(f"Envoi de {len(messages)} messages à l'API pour le chat")
     
     data = {
         "model": "gpt-4o",
         "messages": messages,
-        "max_tokens": 2000
+        "max_tokens": 2000,
+        "temperature": 0.7  # Ajustez selon vos besoins
     }
     
     try:
@@ -354,13 +393,13 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         
         if response.status_code == 200:
             content = response.json()["choices"][0]["message"]["content"]
-            # Ne pas nettoyer le formatage markdown pour permettre un meilleur affichage
+            # Nettoyer le formatage markdown
+            content = content.replace('**', '').replace('##', '').replace('*', '• ')
             return content
         else:
             return f"Erreur API: {response.status_code} - {response.text}"
     except Exception as e:
         return f"Exception: {str(e)}"
-
 # Définition des routes
 @app.route('/')
 def index():
