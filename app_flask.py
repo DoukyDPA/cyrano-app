@@ -62,7 +62,8 @@ def debug_info():
         'uploaded_files': os.listdir(app.config['UPLOAD_FOLDER']) if os.path.exists(app.config['UPLOAD_FOLDER']) else [],
         'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
     }
-    return jsonify(debug_data)import os
+    return jsonify(debug_data)
+import os
 import requests
 import logging
 import re
