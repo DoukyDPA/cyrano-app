@@ -212,7 +212,7 @@ def analyser_document_avec_ia(texte, document_type):
     # Construire le prompt système selon le type de document
     if document_type == "dossier_initial":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION: Analyser ce dossier initial qui contient l'analyse du CV et des recommandations.
+MISSION: Analyse pour ton information ce dossier initial qui contient l'analyse du CV et des recommandations. Il va te servir à conseiller le demandeur d'emploi. 
 FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
 - Utilise # pour les titres principaux
 - Utilise ## pour les sous-titres
@@ -222,7 +222,7 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
 """
     elif document_type == "cv":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION: Analyser ce CV et fournir des conseils d'amélioration.
+MISSION: Analyser ce CV et fournir des conseils d'amélioration dans la continuité de l'analyse du dossier initial. Tu referas une analyse équivalente à celle contenue dans le dossier avec une note sur 10 et des pistes d'amélioration
 FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
 - Utilise # pour les titres principaux
 - Utilise ## pour les sous-titres
@@ -232,7 +232,7 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
 """
     elif document_type == "offre_emploi":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
-MISSION: Analyser cette offre d'emploi et fournir des conseils pour y postuler.
+MISSION: Analyser cette offre d'emploi et fournir des conseils pour y postuler en fonction des éléments contenus dans le dossier et du CV. Si tu n'as pas de nouveau CV demande le.
 FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
 - Utilise # pour les titres principaux
 - Utilise ## pour les sous-titres
@@ -251,8 +251,8 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
 - Sépare bien les sections avec des sauts de ligne
 """
     
-    # Limiter le texte à 4000 caractères
-    texte_limite = texte[:4000] + "..." if len(texte) > 4000 else texte
+    # Limiter le texte à 8000 caractères
+    texte_limite = texte[:8000] + "..." if len(texte) > 8000 else texte
     
     message_utilisateur = f"Voici un document à analyser ({document_type}):\n\n{texte_limite}\n\nMerci de l'analyser et de fournir des conseils pertinents."
     
@@ -316,7 +316,7 @@ def chat_avec_ia(message):
         "Content-Type": "application/json"
     }
     
-    system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
+    system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi en fonction des documents téléchargés et dasn la même logique.
 FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
 - Utilise # pour les titres principaux
 - Utilise ## pour les sous-titres
