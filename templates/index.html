@@ -33,7 +33,6 @@
             border-radius: 10px;
             max-width: 80%;
         }
-        
         /* Styles pour le formatage HTML à l'intérieur des messages */
         .iamonjob-message h1 {
             color: #8b0000;
@@ -42,39 +41,32 @@
             margin-bottom: 10px;
             text-align: left;
         }
-        
         .iamonjob-message h2 {
             color: #8b4513;
             font-size: 18px;
             margin-top: 15px;
             margin-bottom: 8px;
         }
-        
         .iamonjob-message h3 {
             color: #333;
             font-size: 16px;
             margin-top: 12px;
             margin-bottom: 6px;
         }
-        
         .iamonjob-message p {
             margin-bottom: 8px;
             line-height: 1.4;
         }
-        
         .iamonjob-message ul {
             margin-left: 20px;
             margin-bottom: 10px;
         }
-        
         .iamonjob-message li {
             margin-bottom: 5px;
         }
-        
         .iamonjob-message strong {
             color: #8b0000;
         }
-        
         .iamonjob-message br {
             display: block;
             content: "";
@@ -169,7 +161,12 @@
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-
+    <script>
+        // Configuration de marked pour activer les sauts de ligne
+        marked.setOptions({
+            breaks: true
+        });
+    </script>
 </head>
 <body>
     <h1>IAMONJOB</h1>
@@ -179,7 +176,6 @@
     <!-- Section pour le téléchargement de documents -->
     <div class="upload-container">
         <h3>Documents nécessaires pour votre accompagnement</h3>
-        
         <!-- Dossier Initial (OBLIGATOIRE) -->
         <div class="upload-section" id="section-dossier">
             <h4>Dossier initial d'analyse <span class="required-tag">*OBLIGATOIRE*</span></h4>
@@ -238,18 +234,15 @@
     </div>
 
     <script>
-        // S'assurer que tous les éléments sont correctement initialisés
         document.addEventListener('DOMContentLoaded', function() {
             console.log("DOM entièrement chargé et analysé");
-            
-            // Vérifier que les éléments critiques existent
+            // Vérification des éléments critiques
             const criticalElements = [
                 'chat-container', 'message-input', 'send-button',
                 'dossier-indicator', 'dossier-status',
                 'cv-indicator', 'cv-status',
                 'offre-indicator', 'offre-status'
             ];
-            
             let missingElements = [];
             criticalElements.forEach(id => {
                 if (!document.getElementById(id)) {
@@ -257,106 +250,59 @@
                     missingElements.push(id);
                 }
             });
-            
             if (missingElements.length > 0) {
                 console.error("Éléments manquants:", missingElements);
                 alert("Erreur d'initialisation de la page. Certains éléments sont manquants: " + missingElements.join(', '));
             } else {
                 console.log("Tous les éléments critiques sont présents");
-                // Vérifier l'état des documents au chargement
                 checkSessionStatus();
             }
-            
-            // Attacher les événements aux formulaires
-            try {
-                const dossierForm = document.getElementById('dossier-form');
-                if (dossierForm) {
-                    dossierForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        uploadDocument(this, 'dossier');
-                    });
-                    console.log("Événement attaché au formulaire dossier");
+
+            // Attachement des événements aux formulaires
+            document.getElementById('dossier-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                uploadDocument(this, 'dossier');
+            });
+            document.getElementById('cv-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                uploadDocument(this, 'cv');
+            });
+            document.getElementById('offre-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                uploadDocument(this, 'offre');
+            });
+            // Envoi via la touche Entrée pour le champ message
+            document.getElementById('message-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
                 }
-                
-                const cvForm = document.getElementById('cv-form');
-                if (cvForm) {
-                    cvForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        uploadDocument(this, 'cv');
-                    });
-                    console.log("Événement attaché au formulaire CV");
-                }
-                
-                const offreForm = document.getElementById('offre-form');
-                if (offreForm) {
-                    offreForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        uploadDocument(this, 'offre');
-                    });
-                    console.log("Événement attaché au formulaire offre");
-                }
-                
-                // Attacher l'événement pour l'envoi des messages
-                const messageInput = document.getElementById('message-input');
-                if (messageInput) {
-                    messageInput.addEventListener('keypress', function(e) {
-                        if (e.key === 'Enter') {
-                            sendMessage();
-                        }
-                    });
-                    console.log("Événement attaché à l'input de message");
-                }
-            } catch (error) {
-                console.error("Erreur lors de l'attachement des événements:", error);
-            }
+            });
         });
-        
+
         // Fonction pour vérifier l'état des documents téléchargés
         function checkSessionStatus() {
             fetch('/session_status')
                 .then(response => response.json())
                 .then(data => {
                     console.log("Session status data:", data);
-                    
-                    // Utiliser updateDocumentStatus seulement si les éléments existent
-                    if (document.getElementById('dossier-indicator')) {
-                        updateDocumentStatus('dossier', data.dossier_initial);
-                    }
-                    
-                    if (document.getElementById('cv-indicator')) {
-                        updateDocumentStatus('cv', data.cv);
-                    }
-                    
-                    if (document.getElementById('offre-indicator')) {
-                        updateDocumentStatus('offre', data.offre_emploi);
-                    }
-                    
-                    // Activer le chat si le dossier initial est présent
+                    updateDocumentStatus('dossier', data.dossier_initial);
+                    updateDocumentStatus('cv', data.cv);
+                    updateDocumentStatus('offre', data.offre_emploi);
                     if (data.dossier_initial) {
-                        if (document.getElementById('message-input')) {
-                            document.getElementById('message-input').disabled = false;
-                        }
-                        
-                        if (document.getElementById('send-button')) {
-                            document.getElementById('send-button').disabled = false;
-                        }
+                        document.getElementById('message-input').disabled = false;
+                        document.getElementById('send-button').disabled = false;
                     }
                 })
                 .catch(error => {
                     console.error('Erreur lors de la vérification de l\'état de la session:', error);
                 });
         }
-        
+
         // Mettre à jour l'indicateur visuel pour un document
         function updateDocumentStatus(documentType, isUploaded) {
             const indicator = document.getElementById(`${documentType}-indicator`);
             const statusText = document.getElementById(`${documentType}-status`);
-            
-            if (!indicator || !statusText) {
-                console.error(`Élément non trouvé pour le type de document: ${documentType}`);
-                return;
-            }
-            
+            if (!indicator || !statusText) return;
             if (isUploaded) {
                 indicator.className = 'status-indicator status-green';
                 statusText.innerHTML = `<span class="status-indicator status-green"></span> Téléchargé et analysé`;
@@ -365,219 +311,101 @@
                 statusText.innerHTML = `<span class="status-indicator status-red"></span> Non téléchargé`;
             }
         }
-        
-        // Gérer le téléchargement du dossier initial
-        document.getElementById('dossier-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            uploadDocument(this, 'dossier');
-        });
-        
-        // Gérer le téléchargement du CV
-        document.getElementById('cv-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            uploadDocument(this, 'cv');
-        });
-        
-        // Gérer le téléchargement de l'offre d'emploi
-        document.getElementById('offre-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            uploadDocument(this, 'offre');
-        });
-        
+
         // Fonction générique pour télécharger un document
         function uploadDocument(form, documentType) {
             const formData = new FormData(form);
             const statusElement = document.getElementById(`${documentType}-status`);
-            
-            if (!statusElement) {
-                console.error(`Élément de statut non trouvé pour ${documentType}`);
-                return;
-            }
-            
-            // Afficher un message de chargement
+            if (!statusElement) return;
             statusElement.innerHTML = '<span class="status-indicator status-red"></span> Téléchargement en cours...';
-            console.log(`Début du téléchargement pour ${documentType}`);
-            
             fetch('/upload', {
                 method: 'POST',
                 body: formData
             })
             .then(response => {
-                console.log(`Réponse reçue pour ${documentType}:`, response);
-                if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
-                }
+                if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                 return response.json();
             })
             .then(data => {
-                console.log(`Données reçues pour ${documentType}:`, data);
-                
-                // Vérifier si la réponse contient bien les données attendues
-                if (!data || !data.response) {
-                    throw new Error("Réponse invalide du serveur");
+                if (!data || !data.response) throw new Error("Réponse invalide du serveur");
+                if (data.success === false) throw new Error(data.response || "Échec de l'opération");
+                updateDocumentStatus(documentType, true);
+                const chatContainer = document.getElementById('chat-container');
+                // Message utilisateur
+                const userMessageDiv = document.createElement('div');
+                userMessageDiv.className = 'user-message';
+                userMessageDiv.textContent = documentType === 'dossier' ? "J'ai téléchargé le dossier initial." :
+                                             documentType === 'cv' ? "J'ai téléchargé mon CV." :
+                                             "J'ai téléchargé une offre d'emploi.";
+                chatContainer.appendChild(userMessageDiv);
+                // Réponse de l'IA
+                const iaMessageDiv = document.createElement('div');
+                iaMessageDiv.className = 'iamonjob-message';
+                iaMessageDiv.innerHTML = data.response;
+                chatContainer.appendChild(iaMessageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                if (documentType === 'dossier') {
+                    document.getElementById('message-input').disabled = false;
+                    document.getElementById('send-button').disabled = false;
+                    const activationMsg = document.createElement('div');
+                    activationMsg.className = 'iamonjob-message';
+                    activationMsg.innerHTML = "<h2>Le dossier initial a bien été téléchargé</h2><p>Vous pouvez maintenant interagir avec votre conseiller IAMONJOB.</p>";
+                    chatContainer.appendChild(activationMsg);
                 }
-                
-                // Vérifier si l'opération a réussi
-                if (data.success === false) {
-                    throw new Error(data.response || "Échec de l'opération");
-                }
-                
-                // Mettre à jour le statut
-                try {
-                    // Vérifier si les éléments existent avant de les mettre à jour
-                    if (document.getElementById(`${documentType}-indicator`)) {
-                        updateDocumentStatus(documentType, true);
-                    } else {
-                        console.warn(`Indicateur non trouvé pour ${documentType}`);
-                    }
-                    
-                    // Ajouter les messages au chat
-                    const chatContainer = document.getElementById('chat-container');
-                    if (!chatContainer) {
-                        console.error("Container de chat non trouvé");
-                        return;
-                    }
-                    
-                    // Message utilisateur
-                    const userMessageDiv = document.createElement('div');
-                    userMessageDiv.className = 'user-message';
-                    let msgText = "";
-                    if (documentType === 'dossier') {
-                        msgText = "J'ai téléchargé le dossier initial.";
-                    } else if (documentType === 'cv') {
-                        msgText = "J'ai téléchargé mon CV.";
-                    } else {
-                        msgText = "J'ai téléchargé une offre d'emploi.";
-                    }
-                    userMessageDiv.textContent = msgText;
-                    chatContainer.appendChild(userMessageDiv);
-                    
-                    // Réponse de l'IA
-                    const iaMessageDiv = document.createElement('div');
-                    iaMessageDiv.className = 'iamonjob-message';
-                    iaMessageDiv.innerHTML = data.response; // Utiliser innerHTML pour interpréter le HTML
-                    chatContainer.appendChild(iaMessageDiv);
-                    
-                    // Faire défiler vers le bas
-                    chatContainer.scrollTop = chatContainer.scrollHeight;
-                    
-                    // Activer le chat si c'était le dossier initial
-                    if (documentType === 'dossier') {
-                        const messageInput = document.getElementById('message-input');
-                        const sendButton = document.getElementById('send-button');
-                        
-                        if (messageInput) messageInput.disabled = false;
-                        if (sendButton) sendButton.disabled = false;
-                        
-                        // Afficher un message explicite indiquant que le chat est maintenant actif
-                        const activationMsg = document.createElement('div');
-                        activationMsg.className = 'iamonjob-message';
-                        activationMsg.innerHTML = "<h2>Le dossier initial a bien été téléchargé</h2><p>Vous pouvez maintenant interagir avec votre conseiller IAMONJOB.</p>";
-                        chatContainer.appendChild(activationMsg);
-                    }
-                    
-                    // Mettre à jour tous les statuts
-                    checkSessionStatus();
-                } catch (processError) {
-                    console.error("Erreur lors du traitement de la réponse:", processError);
-                    if (statusElement) {
-                        statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur de traitement: ${processError.message}`;
-                    }
-                }
+                checkSessionStatus();
             })
             .catch(error => {
-                console.error(`Erreur lors du téléchargement pour ${documentType}:`, error);
-                if (statusElement) {
-                    statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error.message || error}`;
-                }
-                
-                // Afficher une alerte visuelle pour l'erreur
+                statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error.message || error}`;
                 alert(`Erreur lors du téléchargement: ${error.message || error}`);
-                
-                // Essayer d'ajouter un message d'erreur au chat
-                try {
-                    const chatContainer = document.getElementById('chat-container');
-                    if (chatContainer) {
-                        const errorMsg = document.createElement('div');
-                        errorMsg.className = 'iamonjob-message';
-                        errorMsg.style.backgroundColor = '#ffdddd';
-                        errorMsg.textContent = `Une erreur est survenue lors du téléchargement du document: ${error.message || error}`;
-                        chatContainer.appendChild(errorMsg);
-                        chatContainer.scrollTop = chatContainer.scrollHeight;
-                    }
-                } catch (e) {
-                    console.error("Impossible d'ajouter le message d'erreur au chat:", e);
+                const chatContainer = document.getElementById('chat-container');
+                if (chatContainer) {
+                    const errorMsg = document.createElement('div');
+                    errorMsg.className = 'iamonjob-message';
+                    errorMsg.style.backgroundColor = '#ffdddd';
+                    errorMsg.textContent = `Une erreur est survenue lors du téléchargement du document: ${error.message || error}`;
+                    chatContainer.appendChild(errorMsg);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
                 }
             });
         }
-        // Ajouter cette nouvelle fonction pour formater correctement les réponses
-function formatResponse(text) {
-    return marked.parse(text); // Utilise la bibliothèque marked.js
-    <script>
-    marked.setOptions({
-        breaks: true
-    });
-</script>
-}
+
         // Fonction pour envoyer un message
-       function sendMessage() {
-    const messageInput = document.getElementById('message-input');
-    const message = messageInput.value.trim();
-    
-    if (message) {
-        // Afficher le message de l'utilisateur
-        const chatContainer = document.getElementById('chat-container');
-        const userMessageDiv = document.createElement('div');
-        userMessageDiv.className = 'user-message';
-        userMessageDiv.textContent = message;
-        chatContainer.appendChild(userMessageDiv);
-        
-        // Vider l'input
-        messageInput.value = '';
-        
-        // Faire défiler vers le bas
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        
-        // Envoyer la requête au serveur
-        fetch('/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ message: message })
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Afficher la réponse de l'IA
-           const iaMessageDiv = document.createElement('div');
-iaMessageDiv.className = 'iamonjob-message';
-iaMessageDiv.innerHTML = formatResponse(data.response);
-            
-            chatContainer.appendChild(iaMessageDiv);
-            
-            // Faire défiler vers le bas à nouveau
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            
-            // Afficher un message d'erreur
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'iamonjob-message';
-            errorDiv.style.backgroundColor = '#ffdddd';
-            errorDiv.textContent = 'Erreur de communication avec le serveur. Veuillez réessayer.';
-            chatContainer.appendChild(errorDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
-        });
-    }
-}
-        
-        // Permettre l'envoi en appuyant sur Entrée
-        document.getElementById('message-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            if (message) {
+                const chatContainer = document.getElementById('chat-container');
+                const userMessageDiv = document.createElement('div');
+                userMessageDiv.className = 'user-message';
+                userMessageDiv.textContent = message;
+                chatContainer.appendChild(userMessageDiv);
+                messageInput.value = '';
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const iaMessageDiv = document.createElement('div');
+                    iaMessageDiv.className = 'iamonjob-message';
+                    iaMessageDiv.innerHTML = marked.parse(data.response);
+                    chatContainer.appendChild(iaMessageDiv);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                })
+                .catch(error => {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'iamonjob-message';
+                    errorDiv.style.backgroundColor = '#ffdddd';
+                    errorDiv.textContent = 'Erreur de communication avec le serveur. Veuillez réessayer.';
+                    chatContainer.appendChild(errorDiv);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                });
             }
-        });
+        }
     </script>
 </body>
 </html>
