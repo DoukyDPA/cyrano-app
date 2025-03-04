@@ -1,3 +1,13 @@
+import os
+import requests
+import logging
+import re
+from flask import Flask, render_template, request, jsonify, session
+from werkzeug.utils import secure_filename
+import PyPDF2
+import json
+import sys
+
 def formater_reponse_pour_html(texte):
     """Convertir la réponse de l'API en HTML formaté pour l'affichage"""
     app.logger.info("Formatage de la réponse pour HTML")
@@ -63,15 +73,7 @@ def debug_info():
         'environment': {k: v for k, v in os.environ.items() if not k.startswith('OPENAI') and not k.startswith('FLASK_SECRET')}
     }
     return jsonify(debug_data)
-import os
-import requests
-import logging
-import re
-from flask import Flask, render_template, request, jsonify, session
-from werkzeug.utils import secure_filename
-import PyPDF2
-import json
-import sys
+
 
 app = Flask(__name__)
 # Utiliser une clé fixe ou depuis les variables d'environnement pour que la session persiste
