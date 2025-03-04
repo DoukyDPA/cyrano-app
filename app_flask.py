@@ -21,10 +21,10 @@ class CustomSessionInterface(SecureCookieSessionInterface):
         domain = self.get_cookie_domain(app)
         path = self.get_cookie_path(app)
         
-        if not session:
+        iif not session:
             if session.modified:
-                response.delete_cookie(app.session_cookie_name,
-                                       domain=domain, path=path)
+                cookie_name = app.config.get("SESSION_COOKIE_NAME", "session")
+                response.delete_cookie(cookie_name, domain=domain, path=path)
             return
         
         httponly = self.get_cookie_httponly(app)
