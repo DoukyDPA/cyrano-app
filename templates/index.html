@@ -293,6 +293,35 @@
             outline: none;
             border-color: var(--primary);
         }
+        /* Styles pour l'indicateur de chargement */
+.loading-message {
+    background-color: #f0f8ff;
+    border-left: 3px solid #4169e1;
+    padding: 15px;
+}
+
+.loading-message p {
+    color: #555;
+    font-weight: 500;
+}
+
+.loading-message .info-text {
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+/* Animation de pulsation pour l'indicateur de chargement */
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.loading-message {
+    animation: pulse 2s infinite;
+}
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
