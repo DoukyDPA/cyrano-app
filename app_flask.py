@@ -229,29 +229,32 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
     elif document_type == "cv":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser ce CV et fournir des conseils d'amélioration.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
+- Utilise # pour les titres principaux
+- Utilise ## pour les sous-titres
+- Utilise des listes à puces avec -
+- Mets les points importants en **gras**
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     elif document_type == "offre_emploi":
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser cette offre d'emploi et fournir des conseils pour y postuler.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
+- Utilise # pour les titres principaux
+- Utilise ## pour les sous-titres
+- Utilise des listes à puces avec -
+- Mets les points importants en **gras**
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     else:
         system_prompt = """Tu es un coach en insertion professionnelle expérimenté.
 MISSION: Analyser ce document et fournir des conseils utiles.
-FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
-- Utilise des titres et sous-titres clairs
-- Utilise des listes à puces pour les points importants
+FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
+- Utilise # pour les titres principaux
+- Utilise ## pour les sous-titres
+- Utilise des listes à puces avec -
+- Mets les points importants en **gras**
 - Sépare bien les sections avec des sauts de ligne
-- Ne montre pas les symboles markdown dans ta réponse
 """
     
     # Limiter le texte à 4000 caractères
@@ -298,8 +301,7 @@ FORMAT: Utilise le formatage propre pour rendre ta réponse lisible:
                 analyse = response.json()["choices"][0]["message"]["content"]
                 app.logger.info(f"Analyse reçue, longueur: {len(analyse)} caractères")
                 
-                # Nettoyer le formatage si nécessaire (enlever les caractères markdown)
-                analyse = analyse.replace('**', '').replace('##', '').replace('*', '• ')
+
                 
                 # Sauvegarder l'analyse dans la session
                 sauvegarder_analyse_dans_session(analyse, document_type)
