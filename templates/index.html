@@ -335,7 +335,7 @@
                     
                     <div class="upload-status" id="dossier-status">
                         <span class="status-indicator status-red" id="dossier-indicator"></span>
-                        <span>Non téléchargé</span>
+                        <span id="dossier-status-text">Non téléchargé</span>
                     </div>
                 </div>
                 
@@ -354,7 +354,7 @@
                     
                     <div class="upload-status" id="cv-status">
                         <span class="status-indicator status-red" id="cv-indicator"></span>
-                        <span>Non téléchargé</span>
+                        <span id="cv-status-text">Non téléchargé</span>
                     </div>
                 </div>
                 
@@ -373,7 +373,7 @@
                     
                     <div class="upload-status" id="offre-status">
                         <span class="status-indicator status-red" id="offre-indicator"></span>
-                        <span>Non téléchargé</span>
+                        <span id="offre-status-text">Non téléchargé</span>
                     </div>
                 </div>
             </div>
@@ -521,10 +521,10 @@
             
             if (isUploaded) {
                 indicator.className = 'status-indicator status-green';
-                statusText.innerHTML = `<span class="status-indicator status-green"></span> <span>Téléchargé et analysé</span>`;
+                statusText.innerHTML = `<span class="status-indicator status-green"></span> Téléchargé et analysé`;
             } else {
                 indicator.className = 'status-indicator status-red';
-                statusText.innerHTML = `<span class="status-indicator status-red"></span> <span>Non téléchargé</span>`;
+                statusText.innerHTML = `<span class="status-indicator status-red"></span> Non téléchargé`;
             }
         }
         
@@ -544,7 +544,7 @@
             }
             
             // Afficher un message de chargement
-            statusElement.innerHTML = '<span class="status-indicator status-red"></span> <span>Téléchargement en cours...</span>';
+            statusElement.innerHTML = '<span class="status-indicator status-red"></span> Téléchargement en cours...';
             console.log(`Début du téléchargement pour ${documentType}`);
             
             fetch('/upload', {
@@ -630,14 +630,14 @@
                 } catch (processError) {
                     console.error("Erreur lors du traitement de la réponse:", processError);
                     if (statusElement) {
-                        statusElement.innerHTML = `<span class="status-indicator status-red"></span> <span>Erreur de traitement: ${processError.message}</span>`;
+                        statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur de traitement: ${processError.message}`;
                     }
                 }
             })
             .catch(error => {
                 console.error(`Erreur lors du téléchargement pour ${documentType}:`, error);
                 if (statusElement) {
-                    statusElement.innerHTML = `<span class="status-indicator status-red"></span> <span>Erreur: ${error.message || error}</span>`;
+                    statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error.message || error}`;
                 }
                 
                 // Essayer d'ajouter un message d'erreur au chat
