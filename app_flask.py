@@ -180,12 +180,18 @@ def extraire_texte_fichier(file_path):
         return f"Ce type de fichier ({extension}) n'est pas pris en charge pour l'analyse. Veuillez utiliser un fichier .txt ou .pdf."
 
 def sauvegarder_analyse_dans_session(analyse, document_type):
-    """Sauvegarder l'analyse dans la session"""
+    """Sauvegarder l'analyse dans la session avec plus de logs"""
+    app.logger.info(f"Tentative de sauvegarde de l'analyse de type {document_type} dans la session")
+    
     if 'analyses' not in session:
+        app.logger.info("Initialisation du dictionnaire analyses dans la session")
         session['analyses'] = {}
     
     session['analyses'][document_type] = analyse
     session.modified = True
+    
+    app.logger.info(f"Analyse de type {document_type} sauvegardée dans la session ({len(analyse)} caractères)")
+    app.logger.info(f"Types de documents dans la session: {list(session['analyses'].keys())}")
 
 def verifier_dossier_initial():
     """Vérifier si le dossier initial est présent dans la session"""
