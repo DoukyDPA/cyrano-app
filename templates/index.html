@@ -502,7 +502,11 @@
                     } else {
                         console.error("Input message non trouvé");
                     }
-                } catch ({
+                } catch (error) {
+                    console.error("Erreur lors de l'initialisation:", error);
+                }
+            }, 500); // Délai pour s'assurer que tous les éléments sont bien chargés
+        });
         
         // Fonction pour vérifier l'état des documents téléchargés
         function checkSessionStatus() {
