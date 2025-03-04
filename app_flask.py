@@ -340,7 +340,7 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible:
         return f"Erreur lors de la communication avec l'API: {str(e)}"
 
 def chat_avec_ia(message):
-    """Fonction pour discuter avec le coach IA en intégrant tous les documents à chaque requête"""
+    """Fonction pour discuter avec le coach IA en utilisant une approche simplifiée"""
     headers = {
         "Authorization": f"Bearer {API_KEY}",
         "Content-Type": "application/json"
@@ -351,78 +351,71 @@ def chat_avec_ia(message):
         session['chat_history'] = []
         session.modified = True
     
+    # Vérifier si c'est le premier message ou s'il y a déjà un historique
+    is_first_message = len(session['chat_history']) == 0
+    
     system_prompt = """Tu es un coach en insertion professionnelle expérimenté qui aide les demandeurs d'emploi.
-Ta mission est d'aider le candidat en comparant son dossier initial, son CV et l'offre d'emploi (si disponible) 
-et en fournissant des conseils personnalisés. Concentre-toi sur la préparation à l'entretien, l'amélioration 
-de la lettre de motivation, et les stratégies pour se démarquer.
+Tu dois fournir des conseils personnalisés basés sur le dossier initial, le CV et l'offre d'emploi (si disponible).
+Concentre-toi sur des conseils concrets, des suggestions d'amélioration, et des stratégies pour se démarquer.
 
 FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible.
 """
     
-    # Construire les messages en incluant toujours les documents
+    # Commencer avec le prompt système
     messages = [{"role": "system", "content": system_prompt}]
     
-    # Toujours inclure les documents dans chaque requête
-    app.logger.info("Ajout des documents au contexte")
+    # Si c'est le premier message, ajouter un résumé des documents disponibles
+    if is_first_message:
+        context_prompt = "Informations disponibles pour l'accompagnement :\n"
+        
+        if 'analyses' in session:
+            if 'dossier_initial' in session['analyses']:
+                context_prompt += "- Dossier initial d'analyse\n"
+            
+            if 'cv' in session['analyses']:
+                context_prompt += "- CV du candidat\n"
+            
+            if 'offre_emploi' in session['analyses']:
+                context_prompt += "- Offre d'emploi d'intérêt\n"
+        
+        messages.append({"role": "user", "content": context_prompt})
+        messages.append({"role": "assistant", "content": "Je vais vous aider en me basant sur ces documents. Que souhaitez-vous savoir ou améliorer?"})
     
-    # 1. D'abord le dossier initial (contexte principal)
-    if 'analyses' in session and 'dossier_initial' in session['analyses']:
-        dossier = session['analyses']['dossier_initial']
-        app.logger.info(f"Dossier initial trouvé: {len(dossier)} caractères")
-        messages.append({
-            "role": "user", 
-            "content": f"Voici le dossier initial d'analyse du candidat:\n\n{dossier}"
-        })
-        messages.append({
-            "role": "assistant", 
-            "content": "J'ai bien reçu et analysé le dossier initial."
-        })
-    else:
-        app.logger.warning("Dossier initial non trouvé dans la session")
-    
-    # 2. Ensuite le CV (s'il existe)
-    if 'analyses' in session and 'cv' in session['analyses']:
-        cv = session['analyses']['cv']
-        app.logger.info(f"CV trouvé: {len(cv)} caractères")
-        messages.append({
-            "role": "user", 
-            "content": f"Voici le CV actuel du candidat:\n\n{cv}"
-        })
-        messages.append({
-            "role": "assistant", 
-            "content": "J'ai bien reçu et analysé le CV du candidat."
-        })
-    else:
-        app.logger.warning("CV non trouvé dans la session")
-    
-    # 3. Enfin l'offre d'emploi (si elle existe)
-    if 'analyses' in session and 'offre_emploi' in session['analyses']:
-        offre = session['analyses']['offre_emploi']
-        app.logger.info(f"Offre d'emploi trouvée: {len(offre)} caractères")
-        messages.append({
-            "role": "user", 
-            "content": f"Voici l'offre d'emploi qui intéresse le candidat:\n\n{offre}"
-        })
-        messages.append({
-            "role": "assistant", 
-            "content": "J'ai bien reçu et analysé l'offre d'emploi."
-        })
-    else:
-        app.logger.warning("Offre d'emploi non trouvée dans la session")
-    
-    # Ajouter l'historique des messages précédents (limité aux 6 derniers échanges)
-    for msg in session['chat_history'][-6:]:
+    # Ajouter l'historique des messages précédents (limité aux 8 derniers échanges)
+    for msg in session['chat_history'][-8:]:
         messages.append(msg)
     
     # Ajouter le message actuel de l'utilisateur
     messages.append({"role": "user", "content": message})
+    
+    # Si le message contient des mots-clés spécifiques, rappeler à l'IA les informations pertinentes
+    reminder = ""
+    keywords = {
+        "cv": ["cv", "curriculum", "expérience", "compétence", "formation", "parcours"],
+        "lettre": ["lettre", "motivation", "candidature", "postuler"],
+        "entretien": ["entretien", "embauche", "recruteur", "recruteuse", "rdv", "rendez-vous"],
+        "offre": ["offre", "emploi", "annonce", "poste"]
+    }
+    
+    message_lower = message.lower()
+    for category, words in keywords.items():
+        if any(word in message_lower for word in words):
+            if category == "cv" and 'analyses' in session and 'cv' in session['analyses']:
+                reminder += f"\nRappel du CV du candidat:\n{session['analyses']['cv'][:1000]}...\n"
+            elif category == "offre" and 'analyses' in session and 'offre_emploi' in session['analyses']:
+                reminder += f"\nRappel de l'offre d'emploi:\n{session['analyses']['offre_emploi'][:1000]}...\n"
+            elif 'analyses' in session and 'dossier_initial' in session['analyses']:
+                reminder += f"\nRappel des informations pertinentes du dossier initial:\n{session['analyses']['dossier_initial'][:1000]}...\n"
+    
+    if reminder:
+        messages.append({"role": "user", "content": f"Rappel d'informations pour t'aider à répondre: {reminder}"})
     
     app.logger.info(f"Envoi de {len(messages)} messages à l'API pour le chat")
     
     data = {
         "model": "gpt-4o",
         "messages": messages,
-        "max_tokens": 2000,
+        "max_tokens": 1500,  # Réduire un peu pour accélérer la réponse
         "temperature": 0.7
     }
     
@@ -431,7 +424,7 @@ FORMAT: Utilise le formatage markdown pour rendre ta réponse lisible.
             "https://api.openai.com/v1/chat/completions",
             headers=headers,
             json=data,
-            timeout=120  # Timeout encore plus élevé
+            timeout=90
         )
         
         if response.status_code == 200:
