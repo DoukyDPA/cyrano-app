@@ -513,6 +513,11 @@
         // Ajouter cette nouvelle fonction pour formater correctement les réponses
 function formatResponse(text) {
     return marked.parse(text); // Utilise la bibliothèque marked.js
+    <script>
+    marked.setOptions({
+        breaks: true
+    });
+</script>
 }
         // Fonction pour envoyer un message
        function sendMessage() {
