@@ -404,127 +404,214 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log("DOM entièrement chargé et analysé");
             
-            // Vérifier que les éléments critiques existent
-            const criticalElements = [
-                'chat-container', 'message-input', 'send-button',
-                'dossier-indicator', 'dossier-status',
-                'cv-indicator', 'cv-status',
-                'offre-indicator', 'offre-status'
-            ];
-            
-            let missingElements = [];
-            criticalElements.forEach(id => {
-                if (!document.getElementById(id)) {
-                    console.error(`Élément critique manquant: ${id}`);
-                    missingElements.push(id);
-                }
-            });
-            
-            if (missingElements.length > 0) {
-                console.error("Éléments manquants:", missingElements);
-                alert("Erreur d'initialisation de la page. Certains éléments sont manquants: " + missingElements.join(', '));
-            } else {
-                console.log("Tous les éléments critiques sont présents");
-                // Vérifier l'état des documents au chargement
-                checkSessionStatus();
-            }
-            
-            // Attacher les événements aux formulaires
-            try {
-                const dossierForm = document.getElementById('dossier-form');
-                if (dossierForm) {
-                    dossierForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        uploadDocument(this, 'dossier');
+            setTimeout(function() {
+                try {
+                    // Vérifier que les éléments critiques existent
+                    const criticalElements = [
+                        'chat-container', 'message-input', 'send-button',
+                        'dossier-indicator', 'dossier-status',
+                        'cv-indicator', 'cv-status',
+                        'offre-indicator', 'offre-status'
+                    ];
+                    
+                    // Afficher tous les éléments trouvés pour le débogage
+                    console.log("Éléments trouvés dans le DOM :");
+                    criticalElements.forEach(id => {
+                        const element = document.getElementById(id);
+                        console.log(`- ${id}: ${element ? 'présent' : 'MANQUANT'}`);
                     });
-                    console.log("Événement attaché au formulaire dossier");
-                }
-                
-                const cvForm = document.getElementById('cv-form');
-                if (cvForm) {
-                    cvForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        uploadDocument(this, 'cv');
-                    });
-                    console.log("Événement attaché au formulaire CV");
-                }
-                
-                const offreForm = document.getElementById('offre-form');
-                if (offreForm) {
-                    offreForm.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        uploadDocument(this, 'offre');
-                    });
-                    console.log("Événement attaché au formulaire offre");
-                }
-                
-                // Attacher l'événement pour l'envoi des messages
-                const messageInput = document.getElementById('message-input');
-                if (messageInput) {
-                    messageInput.addEventListener('keypress', function(e) {
-                        if (e.key === 'Enter') {
-                            sendMessage();
+                    
+                    let missingElements = [];
+                    criticalElements.forEach(id => {
+                        if (!document.getElementById(id)) {
+                            console.error(`Élément critique manquant: ${id}`);
+                            missingElements.push(id);
                         }
                     });
-                    console.log("Événement attaché à l'input de message");
-                }
-            } catch (error) {
-                console.error("Erreur lors de l'attachement des événements:", error);
-            }
-        });
+                    
+                    if (missingElements.length > 0) {
+                        console.error("Éléments manquants:", missingElements);
+                        alert("Erreur d'initialisation de la page. Certains éléments sont manquants: " + missingElements.join(', '));
+                    } else {
+                        console.log("Tous les éléments critiques sont présents");
+                        // Vérifier l'état des documents au chargement
+                        checkSessionStatus();
+                    }
+                    
+                    // Supprimer les gestionnaires d'événements existants (pour éviter les doublons)
+                    const removeExistingListeners = (formId) => {
+                        const oldForm = document.getElementById(formId);
+                        if (oldForm) {
+                            const newForm = oldForm.cloneNode(true);
+                            oldForm.parentNode.replaceChild(newForm, oldForm);
+                            return newForm;
+                        }
+                        return null;
+                    };
+                    
+                    // Attacher les événements aux formulaires
+                    const dossierForm = removeExistingListeners('dossier-form');
+                    if (dossierForm) {
+                        dossierForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            console.log("Formulaire dossier soumis");
+                            uploadDocument(this, 'dossier');
+                        });
+                        console.log("Événement attaché au formulaire dossier");
+                    } else {
+                        console.error("Formulaire dossier non trouvé");
+                    }
+                    
+                    const cvForm = removeExistingListeners('cv-form');
+                    if (cvForm) {
+                        cvForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            console.log("Formulaire CV soumis");
+                            uploadDocument(this, 'cv');
+                        });
+                        console.log("Événement attaché au formulaire CV");
+                    } else {
+                        console.error("Formulaire CV non trouvé");
+                    }
+                    
+                    const offreForm = removeExistingListeners('offre-form');
+                    if (offreForm) {
+                        offreForm.addEventListener('submit', function(e) {
+                            e.preventDefault();
+                            console.log("Formulaire offre soumis");
+                            uploadDocument(this, 'offre');
+                        });
+                        console.log("Événement attaché au formulaire offre");
+                    } else {
+                        console.error("Formulaire offre non trouvé");
+                    }
+                    
+                    // Attacher l'événement pour l'envoi des messages
+                    const messageInput = document.getElementById('message-input');
+                    if (messageInput) {
+                        // Supprimer les gestionnaires existants
+                        const newInput = messageInput.cloneNode(true);
+                        messageInput.parentNode.replaceChild(newInput, messageInput);
+                        
+                        newInput.addEventListener('keypress', function(e) {
+                            if (e.key === 'Enter') {
+                                sendMessage();
+                            }
+                        });
+                        console.log("Événement attaché à l'input de message");
+                    } else {
+                        console.error("Input message non trouvé");
+                    }
+                } catch ({
         
         // Fonction pour vérifier l'état des documents téléchargés
         function checkSessionStatus() {
-            fetch('/session_status')
-                .then(response => response.json())
-                .then(data => {
-                    console.log("Session status data:", data);
-                    
-                    // Utiliser updateDocumentStatus seulement si les éléments existent
-                    if (document.getElementById('dossier-indicator')) {
-                        updateDocumentStatus('dossier', data.dossier_initial);
-                    }
-                    
-                    if (document.getElementById('cv-indicator')) {
-                        updateDocumentStatus('cv', data.cv);
-                    }
-                    
-                    if (document.getElementById('offre-indicator')) {
-                        updateDocumentStatus('offre', data.offre_emploi);
-                    }
-                    
-                    // Activer le chat si le dossier initial est présent
-                    if (data.dossier_initial) {
-                        if (document.getElementById('message-input')) {
-                            document.getElementById('message-input').disabled = false;
+            console.log("Vérification du statut de la session...");
+            
+            try {
+                fetch('/session_status')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Erreur HTTP: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("Session status data:", data);
+                        
+                        if (!data) {
+                            console.error("Données de session vides");
+                            return;
                         }
                         
-                        if (document.getElementById('send-button')) {
-                            document.getElementById('send-button').disabled = false;
+                        console.log("Statuts des documents:", {
+                            "dossier_initial": data.dossier_initial || false,
+                            "cv": data.cv || false,
+                            "offre_emploi": data.offre_emploi || false
+                        });
+                        
+                        // Mise à jour forcée des statuts visuels
+                        updateDocumentStatus('dossier', !!data.dossier_initial);
+                        updateDocumentStatus('cv', !!data.cv);
+                        updateDocumentStatus('offre', !!data.offre_emploi);
+                        
+                        // Activer le chat si le dossier initial est présent
+                        if (data.dossier_initial) {
+                            console.log("Dossier initial présent, activation du chat");
+                            
+                            const messageInput = document.getElementById('message-input');
+                            const sendButton = document.getElementById('send-button');
+                            
+                            if (messageInput) {
+                                messageInput.disabled = false;
+                                console.log("Input de message activé");
+                            } else {
+                                console.error("Element message-input non trouvé");
+                            }
+                            
+                            if (sendButton) {
+                                sendButton.disabled = false;
+                                console.log("Bouton d'envoi activé");
+                            } else {
+                                console.error("Element send-button non trouvé");
+                            }
                         }
-                    }
-                })
-                .catch(error => {
-                    console.error('Erreur lors de la vérification de l\'état de la session:', error);
-                });
+                    })
+                    .catch(error => {
+                        console.error('Erreur lors de la vérification de l\'état de la session:', error);
+                    });
+            } catch (error) {
+                console.error("Exception non gérée dans checkSessionStatus:", error);
+            }
         }
         
         // Mettre à jour l'indicateur visuel pour un document
         function updateDocumentStatus(documentType, isUploaded) {
-            const indicator = document.getElementById(`${documentType}-indicator`);
-            const statusText = document.getElementById(`${documentType}-status`);
+            console.log(`Mise à jour du statut pour ${documentType}: ${isUploaded ? 'téléchargé' : 'non téléchargé'}`);
             
-            if (!indicator || !statusText) {
-                console.error(`Élément non trouvé pour le type de document: ${documentType}`);
-                return;
-            }
-            
-            if (isUploaded) {
-                indicator.className = 'status-indicator status-green';
-                statusText.innerHTML = `<span class="status-indicator status-green"></span> Téléchargé et analysé`;
-            } else {
-                indicator.className = 'status-indicator status-red';
-                statusText.innerHTML = `<span class="status-indicator status-red"></span> Non téléchargé`;
+            try {
+                const indicator = document.getElementById(`${documentType}-indicator`);
+                const statusElement = document.getElementById(`${documentType}-status`);
+                
+                if (!indicator || !statusElement) {
+                    console.error(`Élément non trouvé pour le type de document: ${documentType}`);
+                    console.log(`Indicateur: ${indicator ? 'trouvé' : 'non trouvé'}, Status: ${statusElement ? 'trouvé' : 'non trouvé'}`);
+                    return;
+                }
+                
+                if (isUploaded) {
+                    // Changer la classe de l'indicateur
+                    indicator.className = 'status-indicator status-green';
+                    
+                    // Mettre à jour le texte de statut sans remplacer tout le HTML
+                    statusElement.innerHTML = '';
+                    
+                    const newIndicator = document.createElement('span');
+                    newIndicator.className = 'status-indicator status-green';
+                    statusElement.appendChild(newIndicator);
+                    
+                    const textNode = document.createTextNode(' Téléchargé et analysé');
+                    statusElement.appendChild(textNode);
+                    
+                    console.log(`Statut mis à jour (succès): ${statusElement.textContent}`);
+                } else {
+                    // Changer la classe de l'indicateur
+                    indicator.className = 'status-indicator status-red';
+                    
+                    // Mettre à jour le texte de statut sans remplacer tout le HTML
+                    statusElement.innerHTML = '';
+                    
+                    const newIndicator = document.createElement('span');
+                    newIndicator.className = 'status-indicator status-red';
+                    statusElement.appendChild(newIndicator);
+                    
+                    const textNode = document.createTextNode(' Non téléchargé');
+                    statusElement.appendChild(textNode);
+                    
+                    console.log(`Statut mis à jour (non téléchargé): ${statusElement.textContent}`);
+                }
+            } catch (error) {
+                console.error(`Erreur lors de la mise à jour du statut: ${error.message}`);
             }
         }
         
@@ -535,50 +622,86 @@
         
         // Fonction générique pour télécharger un document
         function uploadDocument(form, documentType) {
-            const formData = new FormData(form);
-            const statusElement = document.getElementById(`${documentType}-status`);
+            console.log(`Début de la fonction uploadDocument pour ${documentType}`);
             
-            if (!statusElement) {
-                console.error(`Élément de statut non trouvé pour ${documentType}`);
-                return;
-            }
-            
-            // Afficher un message de chargement
-            statusElement.innerHTML = '<span class="status-indicator status-red"></span> Téléchargement en cours...';
-            console.log(`Début du téléchargement pour ${documentType}`);
-            
-            fetch('/upload', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                console.log(`Réponse reçue pour ${documentType}:`, response);
-                if (!response.ok) {
-                    throw new Error(`Erreur HTTP: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log(`Données reçues pour ${documentType}:`, data);
-                
-                // Vérifier si la réponse contient bien les données attendues
-                if (!data || !data.response) {
-                    throw new Error("Réponse invalide du serveur");
+            try {
+                // Vérifier que le formulaire est valide
+                if (!form || !form.elements || !form.elements.document) {
+                    console.error(`Formulaire invalide pour ${documentType}`);
+                    alert(`Erreur: Le formulaire pour ${documentType} est invalide.`);
+                    return;
                 }
                 
-                // Vérifier si l'opération a réussi
-                if (data.success === false) {
-                    throw new Error(data.response || "Échec de l'opération");
+                // Vérifier qu'un fichier a été sélectionné
+                const fileInput = form.elements.document;
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    console.error(`Aucun fichier sélectionné pour ${documentType}`);
+                    alert("Veuillez sélectionner un fichier à télécharger.");
+                    return;
                 }
                 
-                // Mettre à jour le statut
-                try {
-                    // Vérifier si les éléments existent avant de les mettre à jour
-                    if (document.getElementById(`${documentType}-indicator`)) {
-                        updateDocumentStatus(documentType, true);
-                    } else {
-                        console.warn(`Indicateur non trouvé pour ${documentType}`);
+                const formData = new FormData(form);
+                const statusElement = document.getElementById(`${documentType}-status`);
+                
+                if (!statusElement) {
+                    console.error(`Élément de statut non trouvé pour ${documentType}`);
+                    return;
+                }
+                
+                // Afficher un message de chargement (avec création d'éléments pour éviter les problèmes innerHTML)
+                statusElement.innerHTML = '';
+                const loadingIndicator = document.createElement('span');
+                loadingIndicator.className = 'status-indicator status-red';
+                statusElement.appendChild(loadingIndicator);
+                statusElement.appendChild(document.createTextNode(' Téléchargement en cours...'));
+                
+                console.log(`Préparation de l'envoi pour ${documentType}, fichier: ${fileInput.files[0].name}`);
+                
+                // Simuler un téléchargement réussi pour les tests (à supprimer en production)
+                // Cette partie est uniquement pour tester les indicateurs visuels
+                /*
+                setTimeout(() => {
+                    console.log("Simulation d'un téléchargement réussi");
+                    updateDocumentStatus(documentType, true);
+                    return;
+                }, 2000);
+                */
+                
+                // Envoi réel au serveur
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    console.log(`Réponse reçue pour ${documentType}:`, response.status);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Erreur HTTP: ${response.status}`);
                     }
+                    
+                    return response.json();
+                })
+                .then(data => {
+                    console.log(`Données reçues pour ${documentType}:`, data);
+                    
+                    // Vérifier si la réponse contient bien les données attendues
+                    if (!data) {
+                        throw new Error("Réponse vide du serveur");
+                    }
+                    
+                    if (!data.response) {
+                        throw new Error("Réponse invalide du serveur (pas de champ 'response')");
+                    }
+                    
+                    // Vérifier si l'opération a réussi
+                    if (data.success === false) {
+                        throw new Error(data.response || "Échec de l'opération");
+                    }
+                    
+                    console.log(`Téléchargement réussi pour ${documentType}`);
+                    
+                    // Forcer la mise à jour du statut à "téléchargé"
+                    updateDocumentStatus(documentType, true);
                     
                     // Ajouter les messages au chat
                     const chatContainer = document.getElementById('chat-container');
@@ -627,34 +750,37 @@
                     
                     // Mettre à jour tous les statuts
                     checkSessionStatus();
-                } catch (processError) {
-                    console.error("Erreur lors du traitement de la réponse:", processError);
+                })
+                .catch(error => {
+                    console.error(`Erreur lors du téléchargement pour ${documentType}:`, error);
+                    
                     if (statusElement) {
-                        statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur de traitement: ${processError.message}`;
+                        statusElement.innerHTML = '';
+                        const errorIndicator = document.createElement('span');
+                        errorIndicator.className = 'status-indicator status-red';
+                        statusElement.appendChild(errorIndicator);
+                        statusElement.appendChild(document.createTextNode(` Erreur: ${error.message || error}`));
                     }
-                }
-            })
-            .catch(error => {
-                console.error(`Erreur lors du téléchargement pour ${documentType}:`, error);
-                if (statusElement) {
-                    statusElement.innerHTML = `<span class="status-indicator status-red"></span> Erreur: ${error.message || error}`;
-                }
-                
-                // Essayer d'ajouter un message d'erreur au chat
-                try {
-                    const chatContainer = document.getElementById('chat-container');
-                    if (chatContainer) {
-                        const errorMsg = document.createElement('div');
-                        errorMsg.className = 'iamonjob-message';
-                        errorMsg.style.backgroundColor = '#ffdddd';
-                        errorMsg.textContent = `Une erreur est survenue lors du téléchargement du document: ${error.message || error}`;
-                        chatContainer.appendChild(errorMsg);
-                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    
+                    // Essayer d'ajouter un message d'erreur au chat
+                    try {
+                        const chatContainer = document.getElementById('chat-container');
+                        if (chatContainer) {
+                            const errorMsg = document.createElement('div');
+                            errorMsg.className = 'iamonjob-message';
+                            errorMsg.style.backgroundColor = '#ffdddd';
+                            errorMsg.textContent = `Une erreur est survenue lors du téléchargement du document: ${error.message || error}`;
+                            chatContainer.appendChild(errorMsg);
+                            chatContainer.scrollTop = chatContainer.scrollHeight;
+                        }
+                    } catch (e) {
+                        console.error("Impossible d'ajouter le message d'erreur au chat:", e);
                     }
-                } catch (e) {
-                    console.error("Impossible d'ajouter le message d'erreur au chat:", e);
-                }
-            });
+                });
+            } catch (error) {
+                console.error(`Exception non gérée dans uploadDocument: ${error.message}`);
+                alert(`Une erreur inattendue s'est produite: ${error.message}`);
+            }
         }
         
         // Fonction pour envoyer un message
